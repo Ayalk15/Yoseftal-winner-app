@@ -224,7 +224,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4 text-white" style={{ direction: 'rtl' }}>
         <div className="bg-gray-900 p-8 rounded-2xl border border-yellow-500 text-center shadow-2xl max-w-sm w-full">
-          <h1 className="text-3xl font-black text-yellow-500 mb-6">🏆 10 חבר'ה</h1>
+          <h1 className="text-3xl font-black text-yellow-500 mb-6">🏆 10 חבר׳ה</h1>
           <p className="text-gray-400 mb-4 text-sm">הכנס כינוי כדי להצטרף לליגה של יוספטל:</p>
           <input 
             type="text" 
@@ -270,7 +270,7 @@ export default function App() {
           <button onClick={() => setCurrentTab('predictions')} className={`py-2 text-[10px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>⚽ משחקים</button>
           <button onClick={() => setCurrentTab('tournament')} className={`py-2 text-[10px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>👑 הימורים</button>
           <button onClick={() => setCurrentTab('leaderboard')} className={`py-2 text-[10px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>📊 טבלה</button>
-          <button onClick={() => setCurrentTab('chat')} className={`py-2 text-[10px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>💬 צ'אט</button>
+          <button onClick={() => setCurrentTab('chat')} className={`py-2 text-[10px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>💬 צ׳אט</button>
           <button onClick={() => setCurrentTab('rules')} className={`py-2 text-[10px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>ℹ️ חוקים</button>
         </nav>
       </div>
@@ -297,7 +297,7 @@ export default function App() {
                   <div className="flex justify-between items-center text-xs text-gray-400">
                     <span>{game.time}</span>
                     <button type="button" disabled={isLocked} onClick={() => toggleJoker(game.id, isLocked)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${isJoker ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-950 text-gray-500'}`}>
-                      {isJoker ? "🃏 ג'וקר פעיל!" : "🃏 סמן ג'וקר"}
+                      {isJoker ? "🃏 ג׳וקר פעיל!" : "🃏 סמן ג׳וקר"}
                     </button>
                   </div>
                   <div className="flex justify-between items-center py-1">
@@ -338,15 +338,15 @@ export default function App() {
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 shadow-2xl">
             <h2 className="text-lg font-black text-yellow-500 text-center mb-2">📝 הניחושים המיוחדים</h2>
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1">🏆 האלופה שלי (40 נק'):</label>
+              <label className="block text-xs font-bold text-gray-400 mb-1">🏆 האלופה שלי (40 נק׳):</label>
               <input type="text" value={tournament.champion} onChange={(e) => setTournament({...tournament, champion: e.target.value})} placeholder="הקלד את שם האלופה..." className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 text-sm focus:outline-none"/>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1">👟 מלך השערים (30 נק' + 2 לכל שער):</label>
+              <label className="block text-xs font-bold text-gray-400 mb-1">👟 מלך השערים (30 נק׳ + 2 לכל שער):</label>
               <input type="text" value={tournament.topScorer} onChange={(e) => setTournament({...tournament, topScorer: e.target.value})} placeholder="הקלד את מלך השערים..." className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 text-sm focus:outline-none"/>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1">🎯 מלך הבישולים (50 נק'):</label>
+              <label className="block text-xs font-bold text-gray-400 mb-1">🎯 מלך הבישולים (50 נק׳):</label>
               <input type="text" value={tournament.topAssists} onChange={(e) => setTournament({...tournament, topAssists: e.target.value})} placeholder="הקלד את מלך הבישולים..." className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 text-sm focus:outline-none"/>
             </div>
             <div className="pt-2">
@@ -380,7 +380,7 @@ export default function App() {
             <form onSubmit={handleSendChat} className="p-3 bg-gray-950 border-t border-gray-800 flex gap-2">
               <input 
                 type="text" 
-                placeholder="כתוב הודעה לחבר'ה..." 
+                placeholder="כתוב הודעה לחבר׳ה..." 
                 className="flex-1 bg-gray-800 rounded-xl px-4 text-sm text-white focus:outline-none focus:border focus:border-yellow-500"
                 value={newChatMessage}
                 onChange={(e) => setNewChatMessage(e.target.value)}
@@ -425,7 +425,7 @@ export default function App() {
                <h3 className="font-bold text-white mb-2 flex items-center gap-2">⚽ ניחושי משחקים</h3>
                <p>• ניחוש כיוון (1,X,2): <span className="text-yellow-500 font-bold">2 נקודות</span>.</p>
                <p>• ניחוש תוצאה מדויקת: <span className="text-yellow-500 font-bold">6 נקודות</span> (כולל הבונוס).</p>
-               <p>• <span className="text-white font-bold">🃏 חוק הג'וקר:</span> משחק שסומן מקבל כפל ניקוד.</p>
+               <p>• <span className="text-white font-bold">🃏 חוק הג׳וקר:</span> משחק שסומן מקבל כפל ניקוד.</p>
              </div>
 
              <div className="bg-gray-950 p-4 rounded-xl border border-gray-800">
