@@ -227,4 +227,37 @@ export default function App() {
               <input value={adminAlert} onChange={e=>setAdminAlert(e.target.value)} className="w-full mt-1 bg-gray-900 p-2 text-xs rounded border border-gray-700 text-white" />
             </div>
             
-            <div className="space-
+            <div className="space-y-3 pt-2 border-t border-red-900/40">
+              <h4 className="text-xs font-bold text-gray-300">הזנת תוצאות אמת למחזור {matchday}:</h4>
+              {allFixtures[matchday]?.map(g => {
+                const act = actualScores[`${matchday}-${g.id}`] || {homeScore:0, awayScore:0, winner:'X', isFinished:false};
+                return (
+                  <div key={g.id} className="bg-gray-900 p-2 rounded border border-gray-800 text-xs flex flex-col gap-2">
+                    <div className="flex justify-between font-bold"><span>{g.home}</span><span>vs</span><span>{g.away}</span></div>
+                    <div className="flex justify-between items-center" style={{direction:'ltr'}}>
+                      <div className="flex gap-1 items-center bg-gray-950 px-2 py-0.5 rounded">
+                        <button onClick={()=>handleAdminScore(g.id,'away',-1)} className="text-gray-500 px-1">-</button>
+                        <span className="text-red-400 font-bold">{act.awayScore}</span>
+                        <button onClick={()=>handleAdminScore(g.id,'away',1)} className="text-gray-500 px-1">+</button>
+                      </div>
+                      <div className="flex gap-1 items-center bg-gray-950 px-2 py-0.5 rounded">
+                        <button onClick={()=>handleAdminScore(g.id,'home',-1)} className="text-gray-500 px-1">-</button>
+                        <span className="text-red-400 font-bold">{act.homeScore}</span>
+                        <button onClick={()=>handleAdminScore(g.id,'home',1)} className="text-gray-500 px-1">+</button>
+                      </div>
+                      <button onClick={()=>toggleAdminFinished(g.id)} className={`px-2 py-1 rounded text-[10px] font-bold ${act.isFinished?'bg-green-900 text-green-300':'bg-gray-800 text-gray-400'}`}>
+                        {act.isFinished?'✅ סופי':'⏳ פתוח'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <footer className="mt-8 text-center"><button onClick={() => { if (isAdmin) setIsAdmin(false); else if (prompt('סיסמת מנהל:') === '2531') setIsAdmin(true); else alert('שגיאה'); }} className="text-[10px] font-bold text-gray-600 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg">{isAdmin?'סגור פאנל':'🔧 פאנל ניהול (2531)'}</button></footer>
+    </div>
+  );
+}
