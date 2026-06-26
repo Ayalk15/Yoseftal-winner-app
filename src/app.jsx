@@ -30,7 +30,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('username', username); }, [username]);
   useEffect(() => { localStorage.setItem('adminAlert', adminAlert); }, [adminAlert]);
 
-  // אפקט להפעלת השעון בזמן אמת
+  // הפעלת השעון בזמן אמת
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
