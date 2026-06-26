@@ -7,6 +7,7 @@ export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem('username') || '');
   const [tempUser, setTempUser] = useState('');
   
+  // נתוני מערכת
   const [preds, setPreds] = useState(() => JSON.parse(localStorage.getItem('preds')) || {});
   const [tourney, setTourney] = useState(() => JSON.parse(localStorage.getItem('tourney')) || { champion: '', topScorer: '', topAssists: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState(() => JSON.parse(localStorage.getItem('jokers')) || {});
@@ -14,6 +15,10 @@ export default function App() {
   const [chat, setChat] = useState(() => JSON.parse(localStorage.getItem('chat')) || [{ id: 1, sender: 'מערכת', text: 'ברוכים הבאים לליגת יוספטל!' }]);
   const [newMsg, setNewMsg] = useState('');
   
+  // שעון ותאריך חי
+  const [liveClock, setLiveClock] = useState('');
+
+  // פאנל ניהול
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminAlert, setAdminAlert] = useState(() => localStorage.getItem('adminAlert') || '⚽ לא לשכוח להזין ניחושים עונתיים!');
 
@@ -24,6 +29,17 @@ export default function App() {
   useEffect(() => { localStorage.setItem('chat', JSON.stringify(chat)); }, [chat]);
   useEffect(() => { localStorage.setItem('username', username); }, [username]);
   useEffect(() => { localStorage.setItem('adminAlert', adminAlert); }, [adminAlert]);
+
+  // אפקט להפעלת השעון בזמן אמת
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setLiveClock(now.toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit' }) + ' • ' + now.toLocaleTimeString('he-IL'));
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const totalPoints = () => {
     let pts = 0;
@@ -88,9 +104,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-24" style={{ direction: 'rtl' }}>
       {adminAlert && <div className="bg-red-950 text-red-400 p-2 text-xs font-bold text-center border-b border-red-900 animate-pulse">🚨 {adminAlert}</div>}
-      <header className="bg-gray-900 p-4 flex justify-between items-center border-b border-gray-800">
-        <h1 className="font-black text-yellow-500">🏆 ליגת יוספטל</h1>
-        <span className="text-xs bg-gray-800 px-3 py-1 rounded">👤 {username}</span>
+      
+      <header className="bg-gray-900 p-4 border-b border-gray-800 shadow-md">
+        <div className="flex justify-between items-center max-w-md mx-auto">
+          <h1 className="font-black text-yellow-500 text-lg">🏆 ליגת יוספטל</h1>
+          <span className="text-xs bg-gray-800 px-3 py-1 rounded">👤 {username}</span>
+        </div>
+        <div className="text-center text-[10px] text-gray-400 font-bold mt-2 bg-gray-950/40 py-1 rounded-md max-w-md mx-auto border border-gray-800/30">
+          {liveClock}
+        </div>
       </header>
       
       <nav className="flex bg-gray-900 p-2 text-[11px] font-bold overflow-x-auto border-b border-gray-800">
@@ -116,7 +138,7 @@ export default function App() {
                 <div key={g.id} className={`bg-gray-900 p-4 rounded-xl border ${j?'border-yellow-500 bg-gradient-to-br from-gray-900 to-amber-950/20':'border-gray-800'}`}>
                   <div className="flex justify-between text-[10px] text-gray-500 mb-2">
                     <span>{g.time}</span>
-                    <button onClick={() => setJokers(p => p[matchday]===g.id ? {} : {...p, [matchday]:g.id})} className={`px-2 rounded border ${j?'bg-yellow-500 text-black border-yellow-500':'border-gray-700'}`}>ג'וקר</button>
+                    <button onClick={() => setJokers(p => p[matchday]===g.id ? {} : {...p, [matchday]:g.id})} className={`px-2 rounded border ${j?'bg-yellow-500 text-black border-yellow-500':'border-gray-700'}`}>{j?"🃏 פעיל":"🃏 ג'וקר"}</button>
                   </div>
                   <div className="flex justify-between font-black text-sm mb-4">
                     <span className="w-2/5 text-right">{g.home}</span><span className="text-gray-600">VS</span><span className="w-2/5 text-left">{g.away}</span>
@@ -124,9 +146,9 @@ export default function App() {
                   
                   <div className="flex justify-center gap-4 mb-4" style={{direction:'ltr'}}>
                     <div className="flex gap-2 bg-gray-950 border border-gray-800 px-3 py-1 rounded-lg items-center">
-                      <button onClick={()=>handleScore(g.id,'a',-1)} className="text-gray-400 font-bold px-2">-</button>
+                      <button onClick={()=>handleScore(g.id,'a',-1)} className="text-gray-400 font-bold px-2 py-1">-</button>
                       <span className="text-yellow-500 font-black">{p.a}</span>
-                      <button onClick={()=>handleScore(g.id,'a',1)} className="text-gray-400 font-bold px-2">+</button>
+                      <button onClick={()=>handleScore(g.id,'a',1)} className="text-gray-400 font-bold px-2 py-1">+</button>
                     </div>
                     <span className="font-black text-gray-600 pt-1">:</span>
                     <div className="flex gap-2 bg-gray-950 border border-gray-800 px-3 py-1 rounded-lg items-center">
@@ -199,43 +221,10 @@ export default function App() {
 
         {isAdmin && (
           <div className="mt-6 bg-red-950/30 border border-red-900 p-4 rounded-xl space-y-4">
-            <h3 className="text-red-500 font-black text-center border-b border-red-900/40 pb-2">🔧 פאנל מנהל הליגה</h3>
+            <h3 className="text-red-500 font-black text-center border-b border-red-900/40 pb-2 mb-3">🔧 פאנל מנהל הליגה</h3>
             <div>
               <label className="text-xs text-gray-400">עדכן התראת מנהל:</label>
               <input value={adminAlert} onChange={e=>setAdminAlert(e.target.value)} className="w-full mt-1 bg-gray-900 p-2 text-xs rounded border border-gray-700 text-white" />
             </div>
             
-            <div className="space-y-3 pt-2 border-t border-red-900/40">
-              <h4 className="text-xs font-bold text-gray-300">הזנת תוצאות אמת למחזור {matchday}:</h4>
-              {allFixtures[matchday]?.map(g => {
-                const act = actualScores[`${matchday}-${g.id}`] || {homeScore:0, awayScore:0, winner:'X', isFinished:false};
-                return (
-                  <div key={g.id} className="bg-gray-900 p-2 rounded border border-gray-800 text-xs flex flex-col gap-2">
-                    <div className="flex justify-between font-bold"><span>{g.home}</span><span>vs</span><span>{g.away}</span></div>
-                    <div className="flex justify-between items-center" style={{direction:'ltr'}}>
-                      <div className="flex gap-1 items-center bg-gray-950 px-2 py-0.5 rounded">
-                        <button onClick={()=>handleAdminScore(g.id,'away',-1)} className="text-gray-500 px-1">-</button>
-                        <span className="text-red-400 font-bold">{act.awayScore}</span>
-                        <button onClick={()=>handleAdminScore(g.id,'away',1)} className="text-gray-500 px-1">+</button>
-                      </div>
-                      <div className="flex gap-1 items-center bg-gray-950 px-2 py-0.5 rounded">
-                        <button onClick={()=>handleAdminScore(g.id,'home',-1)} className="text-gray-500 px-1">-</button>
-                        <span className="text-red-400 font-bold">{act.homeScore}</span>
-                        <button onClick={()=>handleAdminScore(g.id,'home',1)} className="text-gray-500 px-1">+</button>
-                      </div>
-                      <button onClick={()=>toggleAdminFinished(g.id)} className={`px-2 py-1 rounded text-[10px] font-bold ${act.isFinished?'bg-green-900 text-green-300':'bg-gray-800 text-gray-400'}`}>
-                        {act.isFinished?'✅ סופי':'⏳ פתוח'}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <footer className="mt-8 text-center"><button onClick={() => { if (isAdmin) setIsAdmin(false); else if (prompt('סיסמת מנהל:') === '2531') setIsAdmin(true); else alert('שגיאה'); }} className="text-[10px] font-bold text-gray-600 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg">{isAdmin?'סגור פאנל':'🔧 פאנל ניהול (2531)'}</button></footer>
-    </div>
-  );
-}
+            <div className="space-
