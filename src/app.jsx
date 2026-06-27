@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from './firebase';
+import { auth, db } from './firebase'; // חובה לוודא ש-db מיוצא מקובץ ה-firebase.js שלך
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
+import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 
 // מאגר כל 36 מחזורי הליגה המלאים
 const allFixtures = {
@@ -67,37 +68,41 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState(''); // שדה הכינוי החדש
+  const [nickname, setNickname] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authError, setAuthError] = useState('');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // ניהול תפריט ההמבורגר
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const [currentTab, setCurrentTab] = useState('predictions');
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
 
+  // Global Admin State
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminMatchday, setAdminMatchday] = useState(1);
-  const [adminMessage1, setAdminMessage1] = useState(() => localStorage.getItem('adminMsg1') || "ברוכים הבאים ובהצלחה!");
-  const [adminMessage2, setAdminMessage2] = useState(() => localStorage.getItem('adminMsg2') || "");
-
-  const [predictions, setPredictions] = useState(() => JSON.parse(localStorage.getItem('predictions')) || {});
-  const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', favoriteTeam: '' });
-  const [jokers, setJokers] = useState(() => JSON.parse(localStorage.getItem('jokers')) || {});
-  const [actualScores, setActualScores] = useState(() => JSON.parse(localStorage.getItem('actualScores')) || {});
-  const [lockedMatchdays, setLockedMatchdays] = useState(() => JSON.parse(localStorage.getItem('lockedMatchdays')) || {});
-
-  const [chatMessages, setChatMessages] = useState(() => JSON.parse(localStorage.getItem('chatMessages')) || []);
-  const [newChatMessage, setNewChatMessage] = useState('');
-
-  const [isTournamentLocked, setIsTournamentLocked] = useState(() => JSON.parse(localStorage.getItem('isTournamentLocked')) || false);
-  const [seasonResults, setSeasonResults] = useState(() => JSON.parse(localStorage.getItem('seasonResults')) || { champion: '', topScorer: '' });
-  const [playerGoals, setPlayerGoals] = useState(() => JSON.parse(localStorage.getItem('playerGoals')) || {});
+  const [adminMessage1, setAdminMessage1] = useState("");
+  const [adminMessage2, setAdminMessage2] = useState("");
+  const [actualScores, setActualScores] = useState({});
+  const [lockedMatchdays, setLockedMatchdays] = useState({});
+  const [isTournamentLocked, setIsTournamentLocked] = useState(false);
+  const [seasonResults, setSeasonResults] = useState({ champion: '', topScorer: '' });
+  const [playerGoals, setPlayerGoals] = useState({});
   const [newTrackedPlayer, setNewTrackedPlayer] = useState('');
 
+  // User Local State
+  const [predictions, setPredictions] = useState({});
+  const [tournament, setTournament] = useState({ champion: '', topScorer: '', favoriteTeam: '' });
+  const [jokers, setJokers] = useState({});
+  
+  // App Global State
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newChatMessage, setNewChatMessage] = useState('');
+  const [allUsersData, setAllUsersData] = useState({}); // מאגר כל המשתמשים לטבלה ולניחושים פומביים
+
+  // האזנה למצב התחברות
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -106,18 +111,60 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => { localStorage.setItem('predictions', JSON.stringify(predictions)); }, [predictions]);
-  useEffect(() => { localStorage.setItem('tournament', JSON.stringify(tournament)); }, [tournament]);
-  useEffect(() => { localStorage.setItem('jokers', JSON.stringify(jokers)); }, [jokers]);
-  useEffect(() => { localStorage.setItem('actualScores', JSON.stringify(actualScores)); }, [actualScores]);
-  useEffect(() => { localStorage.setItem('lockedMatchdays', JSON.stringify(lockedMatchdays)); }, [lockedMatchdays]);
-  useEffect(() => { localStorage.setItem('chatMessages', JSON.stringify(chatMessages)); }, [chatMessages]);
-  useEffect(() => { localStorage.setItem('adminMsg1', adminMessage1); }, [adminMessage1]);
-  useEffect(() => { localStorage.setItem('adminMsg2', adminMessage2); }, [adminMessage2]);
-  useEffect(() => { localStorage.setItem('isTournamentLocked', JSON.stringify(isTournamentLocked)); }, [isTournamentLocked]);
-  useEffect(() => { localStorage.setItem('seasonResults', JSON.stringify(seasonResults)); }, [seasonResults]);
-  useEffect(() => { localStorage.setItem('playerGoals', JSON.stringify(playerGoals)); }, [playerGoals]);
+  // האזנה בזמן אמת לנתונים מהענן
+  useEffect(() => {
+    // 1. האזנה להגדרות גלובליות מנהל
+    const unsubGlobal = onSnapshot(doc(db, "league", "global"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setAdminMessage1(data.adminMessage1 || "");
+        setAdminMessage2(data.adminMessage2 || "");
+        setActualScores(data.actualScores || {});
+        setLockedMatchdays(data.lockedMatchdays || {});
+        setIsTournamentLocked(data.isTournamentLocked || false);
+        setSeasonResults(data.seasonResults || { champion: '', topScorer: '' });
+        setPlayerGoals(data.playerGoals || {});
+      }
+    });
 
+    // 2. האזנה להודעות צ'אט
+    const unsubChat = onSnapshot(doc(db, "league", "chat"), (docSnap) => {
+      if (docSnap.exists()) {
+        setChatMessages(docSnap.data().messages || []);
+      }
+    });
+
+    // 3. האזנה לכלל המשתמשים (בשביל הטבלה ולשונית כולם)
+    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      const usersMap = {};
+      snapshot.forEach(d => {
+        usersMap[d.id] = d.data();
+      });
+      setAllUsersData(usersMap);
+    });
+
+    return () => {
+      unsubGlobal();
+      unsubChat();
+      unsubUsers();
+    };
+  }, []);
+
+  // שליפת הנתונים האישיים של המשתמש כשהוא מתחבר
+  useEffect(() => {
+    if (user) {
+      getDoc(doc(db, "users", user.uid)).then(docSnap => {
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          setPredictions(d.predictions || {});
+          setTournament(d.tournament || { champion: '', topScorer: '', favoriteTeam: '' });
+          setJokers(d.jokers || {});
+        }
+      });
+    }
+  }, [user]);
+
+  // שעון וזמנים
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
@@ -178,7 +225,13 @@ export default function App() {
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: nickname });
-        // כפיית רענון מקומי מיידי
+        // שמירת המסמך הראשון בענן למשתמש חדש
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+           displayName: nickname,
+           predictions: {},
+           tournament: { champion: '', topScorer: '', favoriteTeam: '' },
+           jokers: {}
+        });
         setUser({ ...userCredential.user, displayName: nickname });
       }
     } catch (err) {
@@ -194,7 +247,6 @@ export default function App() {
     signOut(auth);
   };
 
-  // פונקציית עדכון הכינוי מתוך המערכת
   const handleEditNickname = async () => {
     const currentName = user?.displayName || user?.email?.split('@')[0];
     const newName = prompt('הכנס כינוי חדש (השם שיופיע בצ\'אט ובטבלה):', currentName);
@@ -203,7 +255,8 @@ export default function App() {
       try {
         await updateProfile(auth.currentUser, { displayName: newName.trim() });
         setUser({ ...auth.currentUser, displayName: newName.trim() });
-        alert('הכינוי שלך עודכן בהצלחה!');
+        await setDoc(doc(db, "users", user.uid), { displayName: newName.trim() }, { merge: true });
+        alert('הכינוי שלך עודכן בהצלחה בענן!');
       } catch (err) {
         alert('שגיאה בעדכון הכינוי. נסה שוב מאוחר יותר.');
       }
@@ -223,11 +276,42 @@ export default function App() {
     }
   };
 
+  // פונקציות שמירה לענן (החלפה של LocalStorage)
+  const handleSaveUserData = async () => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        displayName: user.displayName || user.email.split('@')[0],
+        predictions,
+        tournament,
+        jokers
+      }, { merge: true });
+      alert('הנתונים האישיים שלך נשמרו בענן בהצלחה! ☁️');
+    } catch (e) {
+      alert('שגיאה בשמירה לענן: ' + e.message);
+    }
+  };
+
+  const handleSaveAdminData = async () => {
+    try {
+      await setDoc(doc(db, "league", "global"), {
+        adminMessage1,
+        adminMessage2,
+        actualScores,
+        lockedMatchdays,
+        isTournamentLocked,
+        seasonResults,
+        playerGoals
+      }, { merge: true });
+      alert('כל נתוני המנהל סונכרנו לענן בהצלחה! ☁️');
+    } catch (e) {
+      alert('שגיאה בשמירת נתוני מנהל: ' + e.message);
+    }
+  };
+
+  // ניהול מנהל פנימי (משפיע מקומית עד הלחיצה על שמירה)
   const toggleMatchdayLock = (md, shouldLock) => {
-    setLockedMatchdays(prev => ({
-      ...prev,
-      [md]: shouldLock
-    }));
+    setLockedMatchdays(prev => ({ ...prev, [md]: shouldLock }));
   };
 
   const addPlayerToTracker = () => {
@@ -244,84 +328,15 @@ export default function App() {
     });
   };
 
-  const handlePredict = (gameId, value) => {
-    if (lockedMatchdays[matchday]) {
-      alert('המחזור נעול ולא ניתן לעדכן ניחושים');
-      return;
-    }
-
-    setPredictions(prev => {
-      const key = `${matchday}-${gameId}`;
-      const current = prev[key] || { winner: '', homeScore: 0, awayScore: 0 };
-      return { ...prev, [key]: { ...current, winner: value } };
-    });
-  };
-
-  const handleScoreChange = (gameId, type, delta) => {
-    if (lockedMatchdays[matchday]) {
-      alert('המחזור נעול ולא ניתן לעדכן תוצאה');
-      return;
-    }
-
-    setPredictions(prev => {
-      const key = `${matchday}-${gameId}`;
-      const current = prev[key] || { winner: '', homeScore: 0, awayScore: 0 };
-      let newScore = current[type === 'home' ? 'homeScore' : 'awayScore'] + delta;
-      if (newScore < 0) newScore = 0;
-
-      const updated = { ...current, [type === 'home' ? 'homeScore' : 'awayScore']: newScore };
-
-      if (updated.homeScore > updated.awayScore) updated.winner = '1';
-      else if (updated.homeScore < updated.awayScore) updated.winner = '2';
-      else updated.winner = 'X';
-
-      return { ...prev, [key]: updated };
-    });
-  };
-
-  const toggleJoker = (gameId, isLocked) => {
-    if (isLocked || lockedMatchdays[matchday]) return;
-
-    setJokers(prev => {
-      if (prev[matchday] === gameId) {
-        const updated = { ...prev };
-        delete updated[matchday];
-        return updated;
-      }
-      return { ...prev, [matchday]: gameId };
-    });
-  };
-
-  // מגדירים את שם המשתמש מתוך הפרופיל של פיירבייס או מהאימייל כגיבוי
-  const displayUsername = user?.displayName || user?.email?.split('@')[0];
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newChatMessage.trim()) return;
-
-    const msg = {
-      id: Date.now(),
-      text: newChatMessage,
-      sender: displayUsername,
-      time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setChatMessages([...chatMessages, msg]);
-    setNewChatMessage('');
-  };
-
   const handleActualScoreChange = (gameId, type, val) => {
     const score = parseInt(val) || 0;
-
     setActualScores(prev => {
       const key = `${adminMatchday}-${gameId}`;
       const current = prev[key] || { homeScore: 0, awayScore: 0, isFinished: false, winner: 'X' };
       const updated = { ...current, [type === 'home' ? 'homeScore' : 'awayScore']: score };
-
       if (updated.homeScore > updated.awayScore) updated.winner = '1';
       else if (updated.homeScore < updated.awayScore) updated.winner = '2';
       else updated.winner = 'X';
-
       return { ...prev, [key]: updated };
     });
   };
@@ -334,12 +349,105 @@ export default function App() {
     });
   };
 
-  const getMatchdayPoints = (md) => {
+  // ניהול ניחושים שחקן פנימי
+  const handlePredict = (gameId, value) => {
+    if (lockedMatchdays[matchday]) { alert('המחזור נעול ולא ניתן לעדכן ניחושים'); return; }
+    setPredictions(prev => {
+      const key = `${matchday}-${gameId}`;
+      const current = prev[key] || { winner: '', homeScore: 0, awayScore: 0 };
+      return { ...prev, [key]: { ...current, winner: value } };
+    });
+  };
+
+  const handleScoreChange = (gameId, type, delta) => {
+    if (lockedMatchdays[matchday]) { alert('המחזור נעול ולא ניתן לעדכן תוצאה'); return; }
+    setPredictions(prev => {
+      const key = `${matchday}-${gameId}`;
+      const current = prev[key] || { winner: '', homeScore: 0, awayScore: 0 };
+      let newScore = current[type === 'home' ? 'homeScore' : 'awayScore'] + delta;
+      if (newScore < 0) newScore = 0;
+      const updated = { ...current, [type === 'home' ? 'homeScore' : 'awayScore']: newScore };
+      if (updated.homeScore > updated.awayScore) updated.winner = '1';
+      else if (updated.homeScore < updated.awayScore) updated.winner = '2';
+      else updated.winner = 'X';
+      return { ...prev, [key]: updated };
+    });
+  };
+
+  const toggleJoker = (gameId, isLocked) => {
+    if (isLocked || lockedMatchdays[matchday]) return;
+    setJokers(prev => {
+      if (prev[matchday] === gameId) {
+        const updated = { ...prev };
+        delete updated[matchday];
+        return updated;
+      }
+      return { ...prev, [matchday]: gameId };
+    });
+  };
+
+  const displayUsername = user?.displayName || user?.email?.split('@')[0];
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newChatMessage.trim()) return;
+
+    const msg = {
+      id: Date.now(),
+      text: newChatMessage,
+      sender: displayUsername,
+      time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const newChatArray = [...chatMessages, msg];
+    setChatMessages(newChatArray); // עדכון מקומי מהיר
+    setNewChatMessage('');
+    
+    // דחיפה לענן
+    await setDoc(doc(db, "league", "chat"), { messages: newChatArray }, { merge: true });
+  };
+
+  // חישוב נקודות כללי למשתמש ספציפי (לפי הענן)
+  const calculatePointsForUser = (userData) => {
     let pts = 0;
+    const uPreds = userData.predictions || {};
+    const uJokers = userData.jokers || {};
+    const uTourn = userData.tournament || {};
+
+    Object.keys(actualScores).forEach(key => {
+      const actual = actualScores[key];
+      const pred = uPreds[key];
+      if (actual && actual.isFinished && pred) {
+        const [md, gameId] = key.split('-');
+        let localPts = 0;
+        if (pred.winner === actual.winner) {
+          localPts += 2;
+          if (Number(pred.homeScore) === Number(actual.homeScore) && Number(pred.awayScore) === Number(actual.awayScore)) {
+            localPts += 4;
+          }
+        }
+        if (uJokers[md] && String(uJokers[md]) === String(gameId)) localPts *= 2;
+        pts += localPts;
+      }
+    });
+
+    if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 50;
+    if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 30;
+    if (uTourn.topScorer && playerGoals[uTourn.topScorer]) pts += (playerGoals[uTourn.topScorer] * 2);
+
+    return pts;
+  };
+
+  // חישוב נקודות למחזור ספציפי למשתמש (עבור הלשונית הפומבית וה-MVP)
+  const getMatchdayPointsForUser = (md, userData) => {
+    let pts = 0;
+    const uPreds = userData.predictions || {};
+    const uJokers = userData.jokers || {};
+    
     allFixtures[md]?.forEach(game => {
       const key = `${md}-${game.id}`;
       const actual = actualScores[key];
-      const pred = predictions[key];
+      const pred = uPreds[key];
       if (actual && actual.isFinished && pred) {
         let local = 0;
         if (pred.winner === actual.winner) {
@@ -348,62 +456,37 @@ export default function App() {
             local += 4;
           }
         }
-        if (jokers[md] && String(jokers[md]) === String(game.id)) local *= 2;
+        if (uJokers[md] && String(uJokers[md]) === String(game.id)) local *= 2;
         pts += local;
       }
     });
     return pts;
   };
 
-  const getLiveStatistics = () => {
-    let matchPoints = 0;
-
-    Object.keys(actualScores).forEach(key => {
-      const actual = actualScores[key];
-      const pred = predictions[key];
-
-      if (actual && actual.isFinished && pred) {
-        const [md, gameId] = key.split('-');
-        let localPoints = 0;
-
-        if (pred.winner === actual.winner) {
-          localPoints += 2;
-          if (Number(pred.homeScore) === Number(actual.homeScore) && Number(pred.awayScore) === Number(actual.awayScore)) {
-            localPoints += 4;
-          }
-        }
-
-        if (jokers[md] && String(jokers[md]) === String(gameId)) {
-          localPoints *= 2;
-        }
-
-        matchPoints += localPoints;
-      }
-    });
-
-    if (seasonResults.champion && tournament.champion === seasonResults.champion) {
-      matchPoints += 50;
-    }
-    if (seasonResults.topScorer && tournament.topScorer === seasonResults.topScorer) {
-      matchPoints += 30;
-    }
-    if (tournament.topScorer && playerGoals[tournament.topScorer]) {
-      matchPoints += playerGoals[tournament.topScorer] * 2;
-    }
-
-    return { totalPoints: matchPoints };
-  };
+  // יצירת מערך הטבלה מכלל המשתמשים ממוין לפי ניקוד
+  const leaderboardArr = Object.values(allUsersData).map(u => ({
+     name: u.displayName || 'משתמש',
+     team: u.tournament?.favoriteTeam || '',
+     points: calculatePointsForUser(u)
+  })).sort((a, b) => b.points - a.points);
 
   const getMVP = () => {
-    const pts = getMatchdayPoints(matchday);
-    if (pts > 0) {
-      return `${displayUsername} עם ${pts} נקודות! 🏆`;
-    }
+    let maxPts = 0;
+    let mvps = [];
+    Object.values(allUsersData).forEach(u => {
+      const pts = getMatchdayPointsForUser(matchday, u);
+      if (pts > maxPts) { maxPts = pts; mvps = [u.displayName || 'משתמש']; }
+      else if (pts === maxPts && pts > 0) { mvps.push(u.displayName || 'משתמש'); }
+    });
+    if (maxPts > 0) return `${mvps.join(', ')} עם ${maxPts} נק'! 🏆`;
     return `עדיין אין נתונים למחזור ${matchday}`;
   };
 
+  // נתונים אישיים לשליפה מהירה לסטט' המקומית
+  const myStats = calculatePointsForUser({ predictions, tournament, jokers });
+
   if (isCheckingAuth) {
-    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים...</div>;
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
   }
 
   if (!user) {
@@ -411,7 +494,7 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center p-4 text-white" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
         <div className="bg-gray-900/90 border-2 border-yellow-500 rounded-2xl p-8 shadow-[0_0_30px_rgba(234,179,8,0.2)] max-w-sm w-full backdrop-blur-md">
           <h1 className="text-3xl font-black text-yellow-500 text-center mb-2">🏆 ליגת יוספטל</h1>
-          <p className="text-gray-400 text-center text-sm mb-8 font-bold">התחבר כדי להתחיל לנחש</p>
+          <p className="text-gray-400 text-center text-sm mb-8 font-bold">התחבר כדי להתחיל לנחש (מחובר לענן ☁️)</p>
 
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
@@ -449,7 +532,6 @@ export default function App() {
     );
   }
 
-  const stats = getLiveStatistics();
   const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
 
   return (
@@ -458,14 +540,12 @@ export default function App() {
       <div className="sticky top-0 pt-2 pb-3 z-50 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(15, 23, 42, 0.85)' }}>
         <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)] relative">
           
-          {/* כפתור תפריט המבורגר חדש למעלה מימין */}
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="absolute top-4 right-4 bg-gray-800 text-gray-300 p-2 rounded-lg border border-gray-700 hover:text-white hover:bg-gray-700 transition-colors z-50">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
-          {/* תפריט הלשוניות הנפתח (מופיע רק כשלוחצים על ההמבורגר) */}
           {isMenuOpen && (
             <div className="absolute top-16 right-4 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-2 flex flex-col gap-1 z-[999] w-48 text-right">
               <button type="button" onClick={() => { setCurrentTab('predictions'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>⚽ משחקים</button>
@@ -486,7 +566,6 @@ export default function App() {
           
           <div className="flex justify-center items-center gap-2 mt-1">
             <p className="text-gray-300 text-sm font-bold">שלום, <span className="text-yellow-500">{displayUsername}</span> 👋</p>
-            {/* כפתור עריכת כינוי חדש */}
             <button onClick={handleEditNickname} className="text-[10px] bg-gray-800 text-gray-300 px-2 py-1 rounded border border-gray-600 hover:bg-gray-700 hover:text-white transition-colors">✏️ ערוך כינוי</button>
           </div>
           
@@ -498,7 +577,7 @@ export default function App() {
 
         {isAdminMode && (
           <div className="bg-gray-900 border-2 border-red-600 rounded-xl p-5 mb-4 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
-            <h2 className="text-red-500 font-black text-xl mb-4 border-b border-red-800 pb-2">🔧 פאנל ניהול מערכת</h2>
+            <h2 className="text-red-500 font-black text-xl mb-4 border-b border-red-800 pb-2">🔧 פאנל ניהול מערכת (ענן)</h2>
 
             <div className="mb-4">
                <button onClick={() => setIsTournamentLocked(!isTournamentLocked)} className={`w-full py-2 rounded font-bold ${isTournamentLocked ? 'bg-red-600' : 'bg-green-600'}`}>
@@ -589,8 +668,11 @@ export default function App() {
                   <input placeholder="שם מלך השערים הסופי" value={seasonResults.topScorer} onChange={e => setSeasonResults({...seasonResults, topScorer: e.target.value})} className="w-full bg-gray-800 text-white p-2 rounded-lg border border-gray-700 text-sm" />
                </div>
             </div>
-
-            <p className="text-xs text-red-400 mt-4 text-center font-bold">⚠️ כרגע נשמר במכשיר. בקרוב נחבר לענן!</p>
+            
+            {/* כפתור שמירת מנהל בענן - חדש וחשוב */}
+            <button onClick={handleSaveAdminData} className="w-full mt-6 bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-lg border border-red-800 text-base transition-all">
+               💾 שמור שינויי מנהל בענן
+            </button>
           </div>
         )}
 
@@ -615,11 +697,37 @@ export default function App() {
                </div>
              ) : (
                <div>
-                 <p className="text-sm text-gray-400 mb-4">המחזור נעול! להלן הניחושים של המשתמשים (בחיבור המלא ל-Firebase תראה כאן את כולם):</p>
-                 <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
-                    <span className="font-bold text-white">{displayUsername} (אתה)</span>
-                    <div className="text-xs text-gray-400 mt-1">נקודות למחזור זה: {getMatchdayPoints(matchday)}</div>
-                 </div>
+                 <p className="text-sm text-gray-400 mb-4">המחזור נעול! להלן הניחושים של כל המשתתפים בליגה:</p>
+                 {Object.keys(allUsersData).length === 0 && <p className="text-gray-500">אין נתונים עדיין.</p>}
+                 {Object.keys(allUsersData).map(uid => {
+                    const u = allUsersData[uid];
+                    const mdPts = getMatchdayPointsForUser(matchday, u);
+                    return (
+                       <div key={uid} className="bg-gray-800 p-3 rounded-lg border border-gray-700 mb-3 shadow-sm">
+                          <div className="flex justify-between items-center border-b border-gray-700 pb-2 mb-2">
+                             <span className="font-bold text-white">{u.displayName || 'משתמש'} {uid === user.uid ? '(אתה)' : ''}</span>
+                             <span className="text-[10px] font-black text-yellow-500 bg-gray-900 px-2 py-1 rounded border border-yellow-900/30">נקודות המחזור: {mdPts}</span>
+                          </div>
+                          <div className="space-y-1 mt-2">
+                             {allFixtures[matchday]?.map(game => {
+                                const gKey = `${matchday}-${game.id}`;
+                                const uPred = u.predictions?.[gKey];
+                                const isJoker = u.jokers?.[matchday] === game.id;
+                                if (!uPred || !uPred.winner) return null;
+                                return (
+                                   <div key={game.id} className="flex justify-between items-center text-xs bg-gray-900 p-1.5 rounded">
+                                      <span className="text-gray-400 w-1/2">{game.home} - {game.away} {isJoker ? '🃏' : ''}</span>
+                                      <span className="font-bold text-yellow-500 bg-gray-950 px-2 py-0.5 rounded">{uPred.homeScore}:{uPred.awayScore}</span>
+                                   </div>
+                                )
+                             })}
+                             {(!u.predictions || Object.keys(u.predictions).filter(k => k.startsWith(`${matchday}-`)).length === 0) && (
+                               <div className="text-xs text-gray-500 text-center py-1">לא הוזנו ניחושים</div>
+                             )}
+                          </div>
+                       </div>
+                    );
+                 })}
                </div>
              )}
            </div>
@@ -698,13 +806,13 @@ export default function App() {
               );
             })}
 
-            <button type="button" onClick={() => alert('הנתונים נשמרו בהצלחה!')} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור שינויים</button>
+            <button type="button" onClick={handleSaveUserData} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור שינויים (ענן)</button>
           </div>
         )}
 
         {currentTab === 'chat' && (
           <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl backdrop-blur-sm flex flex-col h-[55vh]">
-            <h2 className="text-xl font-bold text-yellow-500 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">💬 צ'אט הליגה</h2>
+            <h2 className="text-xl font-bold text-yellow-500 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">💬 צ'אט הליגה (Live)</h2>
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
               {chatMessages.length === 0 ? (
                 <p className="text-center text-gray-500 mt-10">אין עדיין הודעות. תהיה הראשון לכתוב!</p>
@@ -751,13 +859,13 @@ export default function App() {
               <input type="text" value={tournament.topScorer} disabled={isTournamentLocked} onChange={(e) => setTournament({ ...tournament, topScorer: e.target.value })} placeholder="הקלד את מלך השערים..." className={`w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none ${isTournamentLocked ? 'opacity-50 cursor-not-allowed' : 'focus:border-yellow-500 transition-colors'}`} />
             </div>
 
-            <button type="button" disabled={isTournamentLocked} onClick={() => alert('הנתונים נשמרו בהצלחה!')} className={`w-full text-gray-950 font-black py-4 rounded-xl border text-base mt-4 transition-colors shadow-md ${isTournamentLocked ? 'bg-gray-600 border-gray-500 cursor-not-allowed' : 'bg-yellow-500 hover:bg-yellow-400 border-yellow-600'}`}>💾 שמור שינויים</button>
+            <button type="button" disabled={isTournamentLocked} onClick={handleSaveUserData} className={`w-full text-gray-950 font-black py-4 rounded-xl border text-base mt-4 transition-colors shadow-md ${isTournamentLocked ? 'bg-gray-600 border-gray-500 cursor-not-allowed' : 'bg-yellow-500 hover:bg-yellow-400 border-yellow-600'}`}>💾 שמור שינויים (ענן)</button>
           </div>
         )}
 
         {currentTab === 'leaderboard' && (
           <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm">
-            <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2">📊 מצב הטבלה הכללית</h2>
+            <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2">📊 מצב הטבלה הכללית (Live)</h2>
             <div className="overflow-hidden rounded-lg border border-gray-700 shadow-sm">
               <table className="w-full text-right border-collapse">
                 <thead>
@@ -768,11 +876,17 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
-                  <tr className="bg-gray-900 hover:bg-gray-800/50 transition-colors">
-                    <td className="p-4 font-black text-center text-lg text-yellow-500 bg-gray-950/30">1</td>
-                    <td className="p-4 font-bold text-gray-100">{displayUsername}{userTeamSuffix}</td>
-                    <td className="p-4 text-center font-black text-yellow-500 bg-gray-950/50 text-lg">{stats.totalPoints}</td>
-                  </tr>
+                  {leaderboardArr.length === 0 ? (
+                    <tr className="bg-gray-900"><td colSpan="3" className="p-4 text-center text-gray-500">אין נתונים עדיין</td></tr>
+                  ) : (
+                    leaderboardArr.map((u, i) => (
+                      <tr key={i} className={`bg-gray-900 hover:bg-gray-800/50 transition-colors ${u.name === displayUsername ? 'bg-yellow-900/20' : ''}`}>
+                        <td className="p-4 font-black text-center text-lg text-yellow-500 bg-gray-950/30">{i + 1}</td>
+                        <td className="p-4 font-bold text-gray-100">{u.name}{u.team ? ` (${u.team})` : ''} {u.name === displayUsername ? '(אתה)' : ''}</td>
+                        <td className="p-4 text-center font-black text-yellow-500 bg-gray-950/50 text-lg">{u.points}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -782,7 +896,10 @@ export default function App() {
         {currentTab === 'stats' && (
           <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm text-center">
             <h2 className="text-xl font-bold text-yellow-500 mb-4">📈 סטטיסטיקה אישית</h2>
-            <p className="text-gray-300 text-sm">הסטטיסטיקות שלך יופיעו כאן לאחר שהמחזור הראשון יסתיים והתוצאות יתעדכנו.</p>
+            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+               <p className="text-gray-300 text-sm mb-2">סך הנקודות שלך העונה:</p>
+               <p className="text-4xl font-black text-yellow-500">{myStats}</p>
+            </div>
           </div>
         )}
 
