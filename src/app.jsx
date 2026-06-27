@@ -73,7 +73,7 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // --- מצבי אפליקציה וניהול ---
-  const [currentTab, setCurrentTab] = useState('rules'); // ברירת מחדל חוקים בשביל לראות שזה עובד
+  const [currentTab, setCurrentTab] = useState('predictions');
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
@@ -89,6 +89,10 @@ export default function App() {
   const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState(() => JSON.parse(localStorage.getItem('jokers')) || {});
   const [actualScores, setActualScores] = useState(() => JSON.parse(localStorage.getItem('actualScores')) || {});
+  
+  // נתוני הצ'אט
+  const [chatMessages, setChatMessages] = useState(() => JSON.parse(localStorage.getItem('chatMessages')) || []);
+  const [newChatMessage, setNewChatMessage] = useState('');
 
   // מאזינים ושמירות
   useEffect(() => {
@@ -103,6 +107,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('tournament', JSON.stringify(tournament)); }, [tournament]);
   useEffect(() => { localStorage.setItem('jokers', JSON.stringify(jokers)); }, [jokers]);
   useEffect(() => { localStorage.setItem('actualScores', JSON.stringify(actualScores)); }, [actualScores]);
+  useEffect(() => { localStorage.setItem('chatMessages', JSON.stringify(chatMessages)); }, [chatMessages]);
   useEffect(() => { localStorage.setItem('adminMsg1', adminMessage1); }, [adminMessage1]);
   useEffect(() => { localStorage.setItem('adminMsg2', adminMessage2); }, [adminMessage2]);
 
@@ -209,6 +214,19 @@ export default function App() {
     });
   };
 
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!newChatMessage.trim()) return;
+    const msg = {
+      id: Date.now(),
+      text: newChatMessage,
+      sender: user.email.split('@')[0],
+      time: new Date().toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})
+    };
+    setChatMessages([...chatMessages, msg]);
+    setNewChatMessage('');
+  };
+
   // --- פונקציות מנהל להזנת תוצאות אמת ---
   const handleActualScoreChange = (gameId, type, val) => {
     const score = parseInt(val) || 0;
@@ -308,12 +326,15 @@ export default function App() {
           </div>
         </header>
 
-        <nav className="grid grid-cols-5 gap-1 bg-gray-900/90 p-1 rounded-xl mt-3 border border-gray-800 shadow-md">
-          <button type="button" onClick={() => setCurrentTab('predictions')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>⚽ משחקים</button>
-          <button type="button" onClick={() => setCurrentTab('tournament')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👑 הטורניר</button>
-          <button type="button" onClick={() => setCurrentTab('stats')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
-          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📊 טבלה</button>
-          <button type="button" onClick={() => setCurrentTab('rules')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
+        {/* תפריט עליון מחולק ל-2 שורות */}
+        <nav className="grid grid-cols-3 gap-1.5 bg-gray-900/90 p-1.5 rounded-xl mt-3 border border-gray-800 shadow-md">
+          <button type="button" onClick={() => setCurrentTab('predictions')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>⚽ משחקים</button>
+          <button type="button" onClick={() => setCurrentTab('tournament')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👑 הטורניר</button>
+          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📊 טבלה</button>
+          
+          <button type="button" onClick={() => setCurrentTab('chat')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>💬 צ'אט</button>
+          <button type="button" onClick={() => setCurrentTab('stats')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
+          <button type="button" onClick={() => setCurrentTab('rules')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
         </nav>
       </div>
 
@@ -376,6 +397,31 @@ export default function App() {
             <h3 className="text-yellow-500 mt-0 text-lg font-bold mb-2">📣 הודעות מנהל:</h3>
             {adminMessage1 && <p className="m-1 text-sm text-gray-200">{adminMessage1}</p>}
             {adminMessage2 && <p className="m-1 text-sm text-gray-200">{adminMessage2}</p>}
+          </div>
+        )}
+
+        {/* מסך הצ'אט */}
+        {currentTab === 'chat' && (
+          <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl backdrop-blur-sm flex flex-col h-[55vh]">
+            <h2 className="text-xl font-bold text-yellow-500 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">💬 צ'אט הליגה</h2>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {chatMessages.length === 0 ? (
+                <p className="text-center text-gray-500 mt-10">אין עדיין הודעות. תהיה הראשון לכתוב!</p>
+              ) : (
+                chatMessages.map(msg => (
+                  <div key={msg.id} className={`flex flex-col ${msg.sender === username ? 'items-start' : 'items-end'}`}>
+                    <span className="text-[10px] text-gray-500 mb-0.5 px-1">{msg.sender} • {msg.time}</span>
+                    <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${msg.sender === username ? 'bg-yellow-500 text-gray-950 rounded-tr-sm' : 'bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700'}`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <form onSubmit={handleSendMessage} className="mt-3 flex gap-2 pt-2 border-t border-gray-800">
+              <input type="text" value={newChatMessage} onChange={e => setNewChatMessage(e.target.value)} placeholder="כתוב הודעה..." className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-yellow-500" />
+              <button type="submit" className="bg-yellow-500 text-gray-950 px-4 py-2 rounded-lg font-black text-sm hover:bg-yellow-400">שלח</button>
+            </form>
           </div>
         )}
 
@@ -499,11 +545,11 @@ export default function App() {
               <p><span className="text-yellow-500 font-bold">🃏 חוק הג'וקר:</span> משחק שסומן כג'וקר (אחד למחזור) מקבל כפל ניקוד על הניחוש שלו.</p>
             </div>
             
-            <h2 className="text-yellow-500 font-black text-xl flex items-center gap-2 border-b border-gray-800 pb-2 mt-4">👑 חוקי טורניר ובונוסים</h2>
+            <h2 className="text-yellow-500 font-black text-xl flex items-center gap-2 border-b border-gray-800 pb-2 mt-6">👑 חוקי טורניר ובונוסים</h2>
             <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של <span className="text-white font-bold">זהות האלופה</span> מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">50 נקודות</span>.</span></p>
             <div className="bg-gray-950 p-3 rounded-lg border border-gray-800 mt-2 space-y-2">
               <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של <span className="text-white font-bold">מלך השערים</span> מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">30 נקודות</span>.</span></p>
-              <p className="text-sm text-gray-400 font-bold pr-4">⚽ בנוסף, על כל שער שיבקיע השחקן שנבחר במהלך העונה, יקבל המנחש <span className="text-white bg-gray-800 px-1 py-0.5 rounded">2 נקודות</span> נוספות.</p>
+              <p className="text-sm text-gray-400 font-bold pr-4">⚽ בנוסף, על כל שער שיבקיע השחקן שנבחר במהלך העונה, יקבל המנחש <span className="text-white bg-gray-800 px-1.5 py-0.5 rounded border border-gray-700">2 נקודות</span> נוספות.</p>
             </div>
           </div>
         )}
