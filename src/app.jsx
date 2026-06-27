@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 
 // מאגר כל 36 מחזורי הליגה המלאים
 const allFixtures = {
@@ -67,9 +67,12 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nickname, setNickname] = useState(''); // שדה הכינוי החדש
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authError, setAuthError] = useState('');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // ניהול תפריט ההמבורגר
 
   const [currentTab, setCurrentTab] = useState('predictions');
   const [matchday, setMatchday] = useState(1);
@@ -173,7 +176,10 @@ export default function App() {
       if (isLoginMode) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: nickname });
+        // כפיית רענון מקומי מיידי
+        setUser({ ...userCredential.user, displayName: nickname });
       }
     } catch (err) {
       if (err.code === 'auth/invalid-email') setAuthError('כתובת אימייל לא תקינה');
@@ -186,6 +192,22 @@ export default function App() {
 
   const handleLogout = () => {
     signOut(auth);
+  };
+
+  // פונקציית עדכון הכינוי מתוך המערכת
+  const handleEditNickname = async () => {
+    const currentName = user?.displayName || user?.email?.split('@')[0];
+    const newName = prompt('הכנס כינוי חדש (השם שיופיע בצ\'אט ובטבלה):', currentName);
+    
+    if (newName && newName.trim() !== '' && newName !== currentName) {
+      try {
+        await updateProfile(auth.currentUser, { displayName: newName.trim() });
+        setUser({ ...auth.currentUser, displayName: newName.trim() });
+        alert('הכינוי שלך עודכן בהצלחה!');
+      } catch (err) {
+        alert('שגיאה בעדכון הכינוי. נסה שוב מאוחר יותר.');
+      }
+    }
   };
 
   const loginAsAdmin = () => {
@@ -270,6 +292,9 @@ export default function App() {
     });
   };
 
+  // מגדירים את שם המשתמש מתוך הפרופיל של פיירבייס או מהאימייל כגיבוי
+  const displayUsername = user?.displayName || user?.email?.split('@')[0];
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newChatMessage.trim()) return;
@@ -277,7 +302,7 @@ export default function App() {
     const msg = {
       id: Date.now(),
       text: newChatMessage,
-      sender: user.email.split('@')[0],
+      sender: displayUsername,
       time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -372,7 +397,7 @@ export default function App() {
   const getMVP = () => {
     const pts = getMatchdayPoints(matchday);
     if (pts > 0) {
-      return `${user.email.split('@')[0]} עם ${pts} נקודות! 🏆`;
+      return `${displayUsername} עם ${pts} נקודות! 🏆`;
     }
     return `עדיין אין נתונים למחזור ${matchday}`;
   };
@@ -393,6 +418,13 @@ export default function App() {
               <label className="block text-sm font-bold text-gray-300 mb-1">אימייל:</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'ltr' }} />
             </div>
+
+            {!isLoginMode && (
+              <div>
+                <label className="block text-sm font-bold text-gray-300 mb-1">כינוי (חובה):</label>
+                <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} required placeholder="איך תרצה שנקרא לך?" className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'rtl' }} />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-1">סיסמה:</label>
@@ -419,30 +451,46 @@ export default function App() {
 
   const stats = getLiveStatistics();
   const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
-  const username = user.email.split('@')[0];
 
   return (
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
 
       <div className="sticky top-0 pt-2 pb-3 z-50 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(15, 23, 42, 0.85)' }}>
         <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)] relative">
-          <button onClick={handleLogout} className="absolute top-4 right-4 text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded border border-gray-700 hover:text-white">התנתק</button>
+          
+          {/* כפתור תפריט המבורגר חדש למעלה מימין */}
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="absolute top-4 right-4 bg-gray-800 text-gray-300 p-2 rounded-lg border border-gray-700 hover:text-white hover:bg-gray-700 transition-colors z-50">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {/* העברנו את כפתור ההתנתקות שמאלה למעלה */}
+          <button onClick={handleLogout} className="absolute top-4 left-4 text-xs bg-gray-800 text-gray-400 px-3 py-1.5 rounded border border-gray-700 hover:text-white hover:bg-gray-700 transition-colors">התנתק</button>
+
+          {/* תפריט הלשוניות הנפתח (מופיע רק כשלוחצים על ההמבורגר) */}
+          {isMenuOpen && (
+            <div className="absolute top-16 right-4 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-2 flex flex-col gap-1 z-[999] w-48 text-right">
+              <button type="button" onClick={() => { setCurrentTab('predictions'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>⚽ משחקים</button>
+              <button type="button" onClick={() => { setCurrentTab('tournament'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>👑 הטורניר</button>
+              <button type="button" onClick={() => { setCurrentTab('leaderboard'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>📊 טבלה</button>
+              <button type="button" onClick={() => { setCurrentTab('chat'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>💬 צ'אט</button>
+              <button type="button" onClick={() => { setCurrentTab('stats'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>📈 סטט'</button>
+              <button type="button" onClick={() => { setCurrentTab('rules'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>ℹ️ חוקים</button>
+              <button type="button" onClick={() => { setCurrentTab('public'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>👁️ ניחושי כולם</button>
+            </div>
+          )}
+
           <h1 className="text-2xl font-extrabold text-yellow-500 mt-2">🏆 ליגת יוספטל</h1>
-          <p className="text-gray-300 text-sm mt-1 font-bold">שלום, <span className="text-yellow-500">{username}</span> 👋</p>
+          
+          <div className="flex justify-center items-center gap-2 mt-1">
+            <p className="text-gray-300 text-sm font-bold">שלום, <span className="text-yellow-500">{displayUsername}</span> 👋</p>
+            {/* כפתור עריכת כינוי חדש */}
+            <button onClick={handleEditNickname} className="text-[10px] bg-gray-800 text-gray-300 px-2 py-1 rounded border border-gray-600 hover:bg-gray-700 hover:text-white transition-colors">✏️ ערוך כינוי</button>
+          </div>
+          
           <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner border border-gray-700">{liveClockText}</div>
         </header>
-
-        <nav className="flex flex-wrap justify-center gap-1.5 bg-gray-900/90 p-1.5 rounded-xl mt-3 border border-gray-800 shadow-md">
-          <button type="button" onClick={() => setCurrentTab('predictions')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>⚽ משחקים</button>
-          <button type="button" onClick={() => setCurrentTab('tournament')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👑 הטורניר</button>
-          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📊 טבלה</button>
-          <button type="button" onClick={() => setCurrentTab('chat')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>💬 צ'אט</button>
-          <button type="button" onClick={() => setCurrentTab('stats')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
-          <button type="button" onClick={() => setCurrentTab('rules')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
-          
-          {/* הלשונית החדשה תמיד מופיעה. התוכן שלה יוסתר אם המחזור פתוח */}
-          <button type="button" onClick={() => setCurrentTab('public')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👁️ ניחושי כולם</button>
-        </nav>
       </div>
 
       <div className="max-w-md mx-auto mt-2">
@@ -554,7 +602,6 @@ export default function App() {
           </div>
         )}
 
-        {/* תוכן הלשונית החדשה: ניחושי כולם */}
         {currentTab === 'public' && (
            <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl">
              <h2 className="text-xl font-bold text-yellow-500 mb-4">👁️ ניחושי כולם - מחזור {matchday}</h2>
@@ -569,7 +616,7 @@ export default function App() {
                <div>
                  <p className="text-sm text-gray-400 mb-4">המחזור נעול! להלן הניחושים של המשתמשים (בחיבור המלא ל-Firebase תראה כאן את כולם):</p>
                  <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
-                    <span className="font-bold text-white">{username} (אתה)</span>
+                    <span className="font-bold text-white">{displayUsername} (אתה)</span>
                     <div className="text-xs text-gray-400 mt-1">נקודות למחזור זה: {getMatchdayPoints(matchday)}</div>
                  </div>
                </div>
@@ -662,9 +709,9 @@ export default function App() {
                 <p className="text-center text-gray-500 mt-10">אין עדיין הודעות. תהיה הראשון לכתוב!</p>
               ) : (
                 chatMessages.map(msg => (
-                  <div key={msg.id} className={`flex flex-col ${msg.sender === username ? 'items-start' : 'items-end'}`}>
+                  <div key={msg.id} className={`flex flex-col ${msg.sender === displayUsername ? 'items-start' : 'items-end'}`}>
                     <span className="text-[10px] text-gray-500 mb-0.5 px-1">{msg.sender} • {msg.time}</span>
-                    <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${msg.sender === username ? 'bg-yellow-500 text-gray-950 rounded-tr-sm' : 'bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700'}`}>
+                    <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${msg.sender === displayUsername ? 'bg-yellow-500 text-gray-950 rounded-tr-sm' : 'bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700'}`}>
                       {msg.text}
                     </div>
                   </div>
@@ -722,7 +769,7 @@ export default function App() {
                 <tbody className="divide-y divide-gray-800">
                   <tr className="bg-gray-900 hover:bg-gray-800/50 transition-colors">
                     <td className="p-4 font-black text-center text-lg text-yellow-500 bg-gray-950/30">1</td>
-                    <td className="p-4 font-bold text-gray-100">{username}{userTeamSuffix}</td>
+                    <td className="p-4 font-bold text-gray-100">{displayUsername}{userTeamSuffix}</td>
                     <td className="p-4 text-center font-black text-yellow-500 bg-gray-950/50 text-lg">{stats.totalPoints}</td>
                   </tr>
                 </tbody>
