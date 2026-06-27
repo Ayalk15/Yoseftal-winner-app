@@ -78,8 +78,8 @@ export default function App() {
 
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminMatchday, setAdminMatchday] = useState(1);
-  const [adminMessage1, setAdminMessage1] = useState(() => localStorage.getItem('adminMsg1') || "⚽ עדכון: ניחושי מחזור 1 ייסגרו ביום ו' ב-21:00!");
-  const [adminMessage2, setAdminMessage2] = useState(() => localStorage.getItem('adminMsg2') || "💰 בונוס: מי שינחש את התוצאה המדויקת של המשחק של מכבי תל אביב יזכה ב-50 נקודות!");
+  const [adminMessage1, setAdminMessage1] = useState(() => localStorage.getItem('adminMsg1') || "ברוכים הבאים ובהצלחה!");
+  const [adminMessage2, setAdminMessage2] = useState(() => localStorage.getItem('adminMsg2') || "");
 
   const [predictions, setPredictions] = useState(() => JSON.parse(localStorage.getItem('predictions')) || {});
   const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', favoriteTeam: '' });
@@ -89,6 +89,12 @@ export default function App() {
 
   const [chatMessages, setChatMessages] = useState(() => JSON.parse(localStorage.getItem('chatMessages')) || []);
   const [newChatMessage, setNewChatMessage] = useState('');
+
+  // מצבים חדשים לניהול הטורניר ולסיום עונה
+  const [isTournamentLocked, setIsTournamentLocked] = useState(() => JSON.parse(localStorage.getItem('isTournamentLocked')) || false);
+  const [seasonResults, setSeasonResults] = useState(() => JSON.parse(localStorage.getItem('seasonResults')) || { champion: '', topScorer: '' });
+  const [playerGoals, setPlayerGoals] = useState(() => JSON.parse(localStorage.getItem('playerGoals')) || {});
+  const [newTrackedPlayer, setNewTrackedPlayer] = useState('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -106,6 +112,9 @@ export default function App() {
   useEffect(() => { localStorage.setItem('chatMessages', JSON.stringify(chatMessages)); }, [chatMessages]);
   useEffect(() => { localStorage.setItem('adminMsg1', adminMessage1); }, [adminMessage1]);
   useEffect(() => { localStorage.setItem('adminMsg2', adminMessage2); }, [adminMessage2]);
+  useEffect(() => { localStorage.setItem('isTournamentLocked', JSON.stringify(isTournamentLocked)); }, [isTournamentLocked]);
+  useEffect(() => { localStorage.setItem('seasonResults', JSON.stringify(seasonResults)); }, [seasonResults]);
+  useEffect(() => { localStorage.setItem('playerGoals', JSON.stringify(playerGoals)); }, [playerGoals]);
 
   useEffect(() => {
     const updateClock = () => {
@@ -200,6 +209,20 @@ export default function App() {
     }));
   };
 
+  const addPlayerToTracker = () => {
+    if (newTrackedPlayer.trim() && playerGoals[newTrackedPlayer.trim()] === undefined) {
+      setPlayerGoals(prev => ({ ...prev, [newTrackedPlayer.trim()]: 0 }));
+      setNewTrackedPlayer('');
+    }
+  };
+
+  const handlePlayerGoalUpdate = (playerName, delta) => {
+    setPlayerGoals(prev => {
+      const current = prev[playerName] || 0;
+      return { ...prev, [playerName]: Math.max(0, current + delta) };
+    });
+  };
+
   const handlePredict = (gameId, value) => {
     if (lockedMatchdays[matchday]) {
       alert('המחזור נעול ולא ניתן לעדכן ניחושים');
@@ -287,6 +310,27 @@ export default function App() {
     });
   };
 
+  const getMatchdayPoints = (md) => {
+    let pts = 0;
+    allFixtures[md]?.forEach(game => {
+      const key = `${md}-${game.id}`;
+      const actual = actualScores[key];
+      const pred = predictions[key];
+      if (actual && actual.isFinished && pred) {
+        let local = 0;
+        if (pred.winner === actual.winner) {
+          local += 2;
+          if (Number(pred.homeScore) === Number(actual.homeScore) && Number(pred.awayScore) === Number(actual.awayScore)) {
+            local += 4;
+          }
+        }
+        if (jokers[md] && String(jokers[md]) === String(game.id)) local *= 2;
+        pts += local;
+      }
+    });
+    return pts;
+  };
+
   const getLiveStatistics = () => {
     let matchPoints = 0;
 
@@ -313,7 +357,26 @@ export default function App() {
       }
     });
 
+    // בונוסים לטורניר מחושבים אוטומטית אם המנהל הזין תוצאות סיום
+    if (seasonResults.champion && tournament.champion === seasonResults.champion) {
+      matchPoints += 50;
+    }
+    if (seasonResults.topScorer && tournament.topScorer === seasonResults.topScorer) {
+      matchPoints += 30;
+    }
+    if (tournament.topScorer && playerGoals[tournament.topScorer]) {
+      matchPoints += playerGoals[tournament.topScorer] * 2;
+    }
+
     return { totalPoints: matchPoints };
+  };
+
+  const getMVP = () => {
+    const pts = getMatchdayPoints(matchday);
+    if (pts > 0) {
+      return `${user.email.split('@')[0]} עם ${pts} נקודות! 🏆`;
+    }
+    return `עדיין אין נתונים למחזור ${matchday}`;
   };
 
   if (isCheckingAuth) {
@@ -365,19 +428,22 @@ export default function App() {
 
       <div className="sticky top-0 pt-2 pb-3 z-50 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(15, 23, 42, 0.85)' }}>
         <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)] relative">
-          <button onClick={handleLogout} className="absolute top-4 left-4 text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded border border-gray-700 hover:text-white">התנתק</button>
-          <h1 className="text-2xl font-extrabold text-yellow-500">🏆 ליגת יוספטל</h1>
+          <button onClick={handleLogout} className="absolute top-4 right-4 text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded border border-gray-700 hover:text-white">התנתק</button>
+          <h1 className="text-2xl font-extrabold text-yellow-500 mt-2">🏆 ליגת יוספטל</h1>
           <p className="text-gray-300 text-sm mt-1 font-bold">שלום, <span className="text-yellow-500">{username}</span> 👋</p>
           <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner border border-gray-700">{liveClockText}</div>
         </header>
 
-        <nav className="grid grid-cols-3 gap-1.5 bg-gray-900/90 p-1.5 rounded-xl mt-3 border border-gray-800 shadow-md">
-          <button type="button" onClick={() => setCurrentTab('predictions')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>⚽ משחקים</button>
-          <button type="button" onClick={() => setCurrentTab('tournament')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👑 הטורניר</button>
-          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📊 טבלה</button>
-          <button type="button" onClick={() => setCurrentTab('chat')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>💬 צ'אט</button>
-          <button type="button" onClick={() => setCurrentTab('stats')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
-          <button type="button" onClick={() => setCurrentTab('rules')} className={`py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
+        <nav className="flex flex-wrap justify-center gap-1.5 bg-gray-900/90 p-1.5 rounded-xl mt-3 border border-gray-800 shadow-md">
+          <button type="button" onClick={() => setCurrentTab('predictions')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>⚽ משחקים</button>
+          <button type="button" onClick={() => setCurrentTab('tournament')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👑 הטורניר</button>
+          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📊 טבלה</button>
+          <button type="button" onClick={() => setCurrentTab('chat')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>💬 צ'אט</button>
+          <button type="button" onClick={() => setCurrentTab('stats')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
+          <button type="button" onClick={() => setCurrentTab('rules')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
+          {lockedMatchdays[matchday] && (
+             <button type="button" onClick={() => setCurrentTab('public')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👁️ ניחושי כולם</button>
+          )}
         </nav>
       </div>
 
@@ -387,7 +453,13 @@ export default function App() {
           <div className="bg-gray-900 border-2 border-red-600 rounded-xl p-5 mb-4 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
             <h2 className="text-red-500 font-black text-xl mb-4 border-b border-red-800 pb-2">🔧 פאנל ניהול מערכת</h2>
 
-            <div className="space-y-4 mb-6">
+            <div className="mb-4">
+               <button onClick={() => setIsTournamentLocked(!isTournamentLocked)} className={`w-full py-2 rounded font-bold ${isTournamentLocked ? 'bg-red-600' : 'bg-green-600'}`}>
+                  {isTournamentLocked ? '🔓 פתח בחירות טורניר לשינויים' : '🔒 נעל בחירות טורניר למשתמשים'}
+               </button>
+            </div>
+
+            <div className="space-y-4 mb-6 border-t border-red-900/50 pt-4">
               <h3 className="text-white font-bold text-sm">📣 ניהול הודעות:</h3>
               <div>
                 <label className="text-gray-400 text-xs block mb-1">הודעת מנהל 1:</label>
@@ -443,7 +515,35 @@ export default function App() {
               </div>
             </div>
 
-            <p className="text-xs text-red-400 mt-4 text-center font-bold">⚠️ כרגע נעילת מחזור נשמרת במכשיר. כדי שכל המשתמשים יראו אותו דבר, צריך לחבר את זה ל־Firebase.</p>
+            <div className="border-t border-red-900/50 pt-4 mt-4">
+              <h3 className="text-white font-bold text-sm mb-2">⚽ מעקב מלך השערים:</h3>
+              <div className="flex gap-2 mb-4">
+                 <input value={newTrackedPlayer} onChange={e => setNewTrackedPlayer(e.target.value)} placeholder="שם השחקן למעקב..." className="flex-1 bg-gray-800 text-white p-2 rounded-lg border border-gray-700 text-sm" />
+                 <button onClick={addPlayerToTracker} className="bg-blue-600 px-3 rounded-lg text-sm font-bold">הוסף</button>
+              </div>
+              <div className="space-y-2">
+                 {Object.keys(playerGoals).map(player => (
+                    <div key={player} className="flex justify-between items-center bg-gray-800 p-2 rounded text-sm">
+                       <span>{player}</span>
+                       <div className="flex items-center gap-3" style={{direction: 'ltr'}}>
+                          <button onClick={() => handlePlayerGoalUpdate(player, -1)} className="bg-gray-700 px-2 rounded">-</button>
+                          <span className="font-bold w-4 text-center">{playerGoals[player]}</span>
+                          <button onClick={() => handlePlayerGoalUpdate(player, 1)} className="bg-gray-700 px-2 rounded">+</button>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+            </div>
+
+            <div className="border-t border-red-900/50 pt-4 mt-4">
+               <h3 className="text-white font-bold text-sm mb-2">🏁 סיום עונה (קביעת תוצאות אמת):</h3>
+               <div className="space-y-2">
+                  <input placeholder="שם האלופה הסופית" value={seasonResults.champion} onChange={e => setSeasonResults({...seasonResults, champion: e.target.value})} className="w-full bg-gray-800 text-white p-2 rounded-lg border border-gray-700 text-sm" />
+                  <input placeholder="שם מלך השערים הסופי" value={seasonResults.topScorer} onChange={e => setSeasonResults({...seasonResults, topScorer: e.target.value})} className="w-full bg-gray-800 text-white p-2 rounded-lg border border-gray-700 text-sm" />
+               </div>
+            </div>
+
+            <p className="text-xs text-red-400 mt-4 text-center font-bold">⚠️ כרגע נשמר במכשיר. בקרוב נחבר לענן!</p>
           </div>
         )}
 
@@ -454,6 +554,17 @@ export default function App() {
             {adminMessage1 && <p className="m-1 text-sm text-gray-200">{adminMessage1}</p>}
             {adminMessage2 && <p className="m-1 text-sm text-gray-200">{adminMessage2}</p>}
           </div>
+        )}
+
+        {currentTab === 'public' && lockedMatchdays[matchday] && (
+           <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl">
+             <h2 className="text-xl font-bold text-yellow-500 mb-4">👁️ ניחושי כולם - מחזור {matchday}</h2>
+             <p className="text-sm text-gray-400 mb-4">כאן יופיעו הניחושים של כל המשתמשים לאחר חיבור מלא למסד הנתונים בענן.</p>
+             <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                <span className="font-bold text-white">{username} (אתה)</span>
+                <div className="text-xs text-gray-400 mt-1">נקודות למחזור זה: {getMatchdayPoints(matchday)}</div>
+             </div>
+           </div>
         )}
 
         {currentTab === 'predictions' && (
@@ -529,7 +640,7 @@ export default function App() {
               );
             })}
 
-            <button type="button" onClick={() => alert('הנתונים נשמרו בהצלחה!')} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור ניחושים במכשיר</button>
+            <button type="button" onClick={() => alert('הנתונים נשמרו בהצלחה!')} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור שינויים</button>
           </div>
         )}
 
@@ -561,10 +672,12 @@ export default function App() {
         {currentTab === 'tournament' && (
           <div className="bg-gray-900/90 border border-gray-800 rounded-2xl p-6 space-y-5 shadow-2xl backdrop-blur-sm">
             <h2 className="text-xl font-black text-yellow-500 text-center mb-4 border-b border-gray-800 pb-3">📝 הניחושים המיוחדים שלי</h2>
+            
+            {isTournamentLocked && <div className="text-red-500 font-bold text-center mb-2">🔒 בחירות הטורניר נעולות ולא ניתן לשנותן.</div>}
 
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-2">🏆 הקבוצה האהודה שלי בארץ:</label>
-              <select value={tournament.favoriteTeam} onChange={(e) => setTournament({ ...tournament, favoriteTeam: e.target.value })} className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors">
+              <select value={tournament.favoriteTeam} disabled={isTournamentLocked} onChange={(e) => setTournament({ ...tournament, favoriteTeam: e.target.value })} className={`w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none ${isTournamentLocked ? 'opacity-50 cursor-not-allowed' : 'focus:border-yellow-500 transition-colors'}`}>
                 <option value="">-- בחר קבוצה --</option>
                 {ISRAELI_TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
               </select>
@@ -572,15 +685,15 @@ export default function App() {
 
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-2">🏆 האלופה שלי:</label>
-              <input type="text" value={tournament.champion} onChange={(e) => setTournament({ ...tournament, champion: e.target.value })} placeholder="הקלד את שם האלופה..." className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors" />
+              <input type="text" value={tournament.champion} disabled={isTournamentLocked} onChange={(e) => setTournament({ ...tournament, champion: e.target.value })} placeholder="הקלד את שם האלופה..." className={`w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none ${isTournamentLocked ? 'opacity-50 cursor-not-allowed' : 'focus:border-yellow-500 transition-colors'}`} />
             </div>
 
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-2">👟 מלך השערים שלי:</label>
-              <input type="text" value={tournament.topScorer} onChange={(e) => setTournament({ ...tournament, topScorer: e.target.value })} placeholder="הקלד את מלך השערים..." className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors" />
+              <input type="text" value={tournament.topScorer} disabled={isTournamentLocked} onChange={(e) => setTournament({ ...tournament, topScorer: e.target.value })} placeholder="הקלד את מלך השערים..." className={`w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none ${isTournamentLocked ? 'opacity-50 cursor-not-allowed' : 'focus:border-yellow-500 transition-colors'}`} />
             </div>
 
-            <button type="button" onClick={() => alert('הנתונים נשמרו בהצלחה!')} className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-black py-4 rounded-xl border border-yellow-600 text-base mt-4 transition-colors shadow-md">💾 שמור שינויים</button>
+            <button type="button" disabled={isTournamentLocked} onClick={() => alert('הנתונים נשמרו בהצלחה!')} className={`w-full text-gray-950 font-black py-4 rounded-xl border text-base mt-4 transition-colors shadow-md ${isTournamentLocked ? 'bg-gray-600 border-gray-500 cursor-not-allowed' : 'bg-yellow-500 hover:bg-yellow-400 border-yellow-600'}`}>💾 שמור שינויים</button>
           </div>
         )}
 
@@ -643,9 +756,8 @@ export default function App() {
         </button>
       </footer>
 
-      <div className="fixed bottom-0 left-0 w-full bg-gray-950/95 backdrop-blur-md border-t border-gray-800 p-3 text-center text-sm font-medium text-gray-300 z-[1000] shadow-[0_-5px_15px_-3px_rgba(0,0,0,0.5)]">
-        <span className="inline-block w-2 h-2 bg-red-500 rounded-full ml-2 animate-pulse"></span>
-        תוצאות חיות: מכבי תל אביב 2 - הפועל חיפה 0 (מחצית)
+      <div className="fixed bottom-0 left-0 w-full bg-gray-950/95 backdrop-blur-md border-t border-gray-800 p-3 text-center text-sm font-bold text-yellow-500 z-[1000] shadow-[0_-5px_15px_-3px_rgba(0,0,0,0.5)]">
+        🌟 MVP המחזור: {getMVP()}
       </div>
     </div>
   );
