@@ -200,13 +200,11 @@ export default function App() {
   const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
 
   return (
-    // שדרוג 1: הוספת סגנון הרקע (הגריד של הכדורגל) לקונטיינר הראשי
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
       
       <div className="sticky top-0 pt-2 pb-3 z-50 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(15, 23, 42, 0.85)' }}>
         <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)]">
           <h1 className="text-2xl font-extrabold text-yellow-500">🏆 ליגת יוספטל</h1>
-          {/* שדרוג 2: מונה מחוברים */}
           <p className="text-gray-400 text-xs mt-1 font-bold">👥 מחוברים כרגע: 14</p>
           <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner border border-gray-700">
             {liveClockText}
@@ -222,7 +220,6 @@ export default function App() {
         </nav>
       </div>
 
-      {/* שדרוג 3: תיבת הודעות מנהל */}
       {adminMessageVisible && (
         <div className="max-w-md mx-auto mt-2 mb-4 bg-gray-900 border border-yellow-500 rounded-xl p-4 shadow-lg text-right relative overflow-hidden">
           <div className="absolute top-0 right-0 w-2 h-full bg-yellow-500"></div>
@@ -287,7 +284,7 @@ export default function App() {
                 </div>
               );
             })}
-            <button type="button" onClick={() => alert('הניחושים נשמרו במכשיר בהצלחה!')} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור ניחושים</button>
+            <button type="button" onClick={() => alert('הנתונים נשמרו בהצלחה!')} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור ניחושים במכשיר</button>
           </div>
         )}
 
@@ -309,7 +306,7 @@ export default function App() {
               <label className="block text-sm font-bold text-gray-300 mb-2">👟 מלך השערים שלי:</label>
               <input type="text" value={tournament.topScorer} onChange={(e) => setTournament({...tournament, topScorer: e.target.value})} placeholder="הקלד את מלך השערים..." className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors"/>
             </div>
-            <button type="button" onClick={() => alert('הבחירות ארוכות הטווח עודכנו בהצלחה!')} className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-black py-4 rounded-xl border border-yellow-600 text-base mt-4 transition-colors shadow-md">💾 שמור שינויים</button>
+            <button type="button" onClick={() => alert('הנתונים נשמרו בהצלחה!')} className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-black py-4 rounded-xl border border-yellow-600 text-base mt-4 transition-colors shadow-md">💾 שמור שינויים</button>
           </div>
         )}
 
@@ -355,7 +352,6 @@ export default function App() {
         </button>
       </footer>
 
-      {/* שדרוג 4: בר התוצאות החיות שנדבק לתחתית (Live) */}
       <div className="fixed bottom-0 left-0 w-full bg-gray-950/95 backdrop-blur-md border-t border-gray-800 p-3 text-center text-sm font-medium text-gray-300 z-[1000] shadow-[0_-5px_15px_-3px_rgba(0,0,0,0.5)]">
         <span className="inline-block w-2 h-2 bg-red-500 rounded-full ml-2 animate-pulse"></span>
         תוצאות חיות: מכבי תל אביב 2 - הפועל חיפה 0 (מחצית)
