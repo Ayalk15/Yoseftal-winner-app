@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 
 // מאגר כל 36 מחזורי הליגה המלאים
 const allFixtures = {
@@ -67,7 +67,6 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authError, setAuthError] = useState('');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -174,9 +173,7 @@ export default function App() {
       if (isLoginMode) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: nickname });
-        setUser({ ...userCredential.user, displayName: nickname });
+        await createUserWithEmailAndPassword(auth, email, password);
       }
     } catch (err) {
       if (err.code === 'auth/invalid-email') setAuthError('כתובת אימייל לא תקינה');
@@ -184,20 +181,6 @@ export default function App() {
       else if (err.code === 'auth/email-already-in-use') setAuthError('האימייל הזה כבר רשום במערכת');
       else if (err.code === 'auth/weak-password') setAuthError('הסיסמה חלשה מדי (לפחות 6 תווים)');
       else setAuthError('שגיאה בהתחברות. נסה שוב.');
-    }
-  };
-
-  const handleUpdateNickname = async () => {
-    const currentName = user.displayName || user.email.split('@')[0];
-    const newName = prompt('הכנס כינוי חדש:', currentName);
-    if (newName && newName.trim() !== '') {
-      try {
-        await updateProfile(auth.currentUser, { displayName: newName.trim() });
-        setUser({ ...auth.currentUser, displayName: newName.trim() });
-        alert('הכינוי עודכן בהצלחה!');
-      } catch (error) {
-        alert('שגיאה בעדכון הכינוי');
-      }
     }
   };
 
@@ -294,7 +277,7 @@ export default function App() {
     const msg = {
       id: Date.now(),
       text: newChatMessage,
-      sender: user.displayName || user.email.split('@')[0],
+      sender: user.email.split('@')[0],
       time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -389,7 +372,7 @@ export default function App() {
   const getMVP = () => {
     const pts = getMatchdayPoints(matchday);
     if (pts > 0) {
-      return `${user.displayName || user.email.split('@')[0]} עם ${pts} נקודות! 🏆`;
+      return `${user.email.split('@')[0]} עם ${pts} נקודות! 🏆`;
     }
     return `עדיין אין נתונים למחזור ${matchday}`;
   };
@@ -410,13 +393,6 @@ export default function App() {
               <label className="block text-sm font-bold text-gray-300 mb-1">אימייל:</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'ltr' }} />
             </div>
-
-            {!isLoginMode && (
-              <div>
-                <label className="block text-sm font-bold text-gray-300 mb-1">כינוי (יופיע בטבלה ובצ'אט):</label>
-                <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" />
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-1">סיסמה:</label>
@@ -443,7 +419,7 @@ export default function App() {
 
   const stats = getLiveStatistics();
   const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
-  const username = user.displayName || user.email.split('@')[0];
+  const username = user.email.split('@')[0];
 
   return (
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
@@ -452,10 +428,7 @@ export default function App() {
         <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)] relative">
           <button onClick={handleLogout} className="absolute top-4 right-4 text-xs bg-gray-800 text-gray-400 px-3 py-1 rounded border border-gray-700 hover:text-white">התנתק</button>
           <h1 className="text-2xl font-extrabold text-yellow-500 mt-2">🏆 ליגת יוספטל</h1>
-          <p className="text-gray-300 text-sm mt-1 font-bold">
-            שלום, <span className="text-yellow-500">{username}</span> 👋
-            <button onClick={handleUpdateNickname} className="mr-2 text-[10px] text-gray-400 hover:text-white border border-gray-700 px-1.5 py-0.5 rounded">✏️ ערוך כינוי</button>
-          </p>
+          <p className="text-gray-300 text-sm mt-1 font-bold">שלום, <span className="text-yellow-500">{username}</span> 👋</p>
           <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner border border-gray-700">{liveClockText}</div>
         </header>
 
@@ -467,9 +440,8 @@ export default function App() {
           <button type="button" onClick={() => setCurrentTab('stats')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
           <button type="button" onClick={() => setCurrentTab('rules')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
           
-          {lockedMatchdays[matchday] && (
-             <button type="button" onClick={() => setCurrentTab('public')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👁️ ניחושי כולם</button>
-          )}
+          {/* הלשונית החדשה תמיד מופיעה. התוכן שלה יוסתר אם המחזור פתוח */}
+          <button type="button" onClick={() => setCurrentTab('public')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👁️ ניחושי כולם</button>
         </nav>
       </div>
 
