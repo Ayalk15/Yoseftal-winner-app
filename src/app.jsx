@@ -73,7 +73,7 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // --- מצבי אפליקציה וניהול ---
-  const [currentTab, setCurrentTab] = useState('predictions');
+  const [currentTab, setCurrentTab] = useState('rules'); // ברירת מחדל חוקים בשביל לראות שזה עובד
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
@@ -497,6 +497,13 @@ export default function App() {
             <p className="flex items-start gap-2"><span>•</span> <span>ניחוש תוצאה מדויקת נכון: מוסיף עוד <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">4 נק' בונוס</span> (סה"כ 6 נקודות).</span></p>
             <div className="bg-gray-950 p-3 rounded-lg border border-yellow-900/50 mt-2">
               <p><span className="text-yellow-500 font-bold">🃏 חוק הג'וקר:</span> משחק שסומן כג'וקר (אחד למחזור) מקבל כפל ניקוד על הניחוש שלו.</p>
+            </div>
+            
+            <h2 className="text-yellow-500 font-black text-xl flex items-center gap-2 border-b border-gray-800 pb-2 mt-4">👑 חוקי טורניר ובונוסים</h2>
+            <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של <span className="text-white font-bold">זהות האלופה</span> מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">50 נקודות</span>.</span></p>
+            <div className="bg-gray-950 p-3 rounded-lg border border-gray-800 mt-2 space-y-2">
+              <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של <span className="text-white font-bold">מלך השערים</span> מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">30 נקודות</span>.</span></p>
+              <p className="text-sm text-gray-400 font-bold pr-4">⚽ בנוסף, על כל שער שיבקיע השחקן שנבחר במהלך העונה, יקבל המנחש <span className="text-white bg-gray-800 px-1 py-0.5 rounded">2 נקודות</span> נוספות.</p>
             </div>
           </div>
         )}
