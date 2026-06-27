@@ -77,14 +77,14 @@ export default function App() {
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
+  
+  // פאנל מנהל
   const [isAdminMode, setIsAdminMode] = useState(false);
-  const [adminMessageVisible, setAdminMessageVisible] = useState(true);
-
-  // הודעות מנהל דינמיות
+  const [adminMatchday, setAdminMatchday] = useState(1);
   const [adminMessage1, setAdminMessage1] = useState(() => localStorage.getItem('adminMsg1') || "⚽ עדכון: ניחושי מחזור 1 ייסגרו ביום ו' ב-21:00!");
   const [adminMessage2, setAdminMessage2] = useState(() => localStorage.getItem('adminMsg2') || "💰 בונוס: מי שינחש את התוצאה המדויקת של המשחק של מכבי תל אביב יזכה ב-50 נקודות!");
 
-  // --- נתונים נשמרים ---
+  // --- נתונים נשמרים מקומית בינתיים ---
   const [predictions, setPredictions] = useState(() => JSON.parse(localStorage.getItem('predictions')) || {});
   const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState(() => JSON.parse(localStorage.getItem('jokers')) || {});
@@ -176,6 +176,7 @@ export default function App() {
     }
   };
 
+  // --- פונקציות משתמש רגיל ---
   const handlePredict = (gameId, value) => {
     setPredictions(prev => {
       const key = `${matchday}-${gameId}`;
@@ -205,6 +206,28 @@ export default function App() {
         const updated = { ...prev }; delete updated[matchday]; return updated;
       }
       return { ...prev, [matchday]: gameId };
+    });
+  };
+
+  // --- פונקציות מנהל להזנת תוצאות אמת ---
+  const handleActualScoreChange = (gameId, type, val) => {
+    const score = parseInt(val) || 0;
+    setActualScores(prev => {
+      const key = `${adminMatchday}-${gameId}`;
+      const current = prev[key] || { homeScore: 0, awayScore: 0, isFinished: false, winner: 'X' };
+      const updated = { ...current, [type === 'home' ? 'homeScore' : 'awayScore']: score };
+      if (updated.homeScore > updated.awayScore) updated.winner = '1';
+      else if (updated.homeScore < updated.awayScore) updated.winner = '2';
+      else updated.winner = 'X';
+      return { ...prev, [key]: updated };
+    });
+  };
+
+  const toggleGameFinished = (gameId) => {
+    setActualScores(prev => {
+      const key = `${adminMatchday}-${gameId}`;
+      const current = prev[key] || { homeScore: 0, awayScore: 0, isFinished: false, winner: 'X' };
+      return { ...prev, [key]: { ...current, isFinished: !current.isFinished } };
     });
   };
 
@@ -248,7 +271,9 @@ export default function App() {
               <label className="block text-sm font-bold text-gray-300 mb-1">סיסמה (לפחות 6 תווים):</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'ltr' }} />
             </div>
+            
             {authError && <div className="text-red-500 text-sm font-bold text-center bg-red-950/50 p-2 rounded border border-red-800">{authError}</div>}
+            
             <button type="submit" className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-3 rounded-xl shadow-lg border border-yellow-400 mt-4 transition-all transform hover:-translate-y-1">
               {isLoginMode ? 'כניסה למשחק ⚽' : 'הרשמה לליגה 📝'}
             </button>
@@ -294,31 +319,63 @@ export default function App() {
 
       <div className="max-w-md mx-auto mt-2">
         
-        {/* פאנל ניהול שמופיע רק למנהל */}
+        {/* פאנל מנהל מתקדם להזנת תוצאות */}
         {isAdminMode && (
           <div className="bg-gray-900 border-2 border-red-600 rounded-xl p-5 mb-4 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
             <h2 className="text-red-500 font-black text-xl mb-4 border-b border-red-800 pb-2">🔧 פאנל ניהול מערכת</h2>
-            <div className="space-y-4">
+            
+            {/* ניהול הודעות */}
+            <div className="space-y-4 mb-6">
+              <h3 className="text-white font-bold text-sm">📣 ניהול הודעות:</h3>
               <div>
-                <label className="text-gray-300 font-bold text-sm block mb-1">הודעת מנהל 1 (מופיעה למעלה):</label>
-                <input type="text" value={adminMessage1} onChange={(e) => setAdminMessage1(e.target.value)} className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-700 focus:border-red-500 outline-none" />
+                <label className="text-gray-400 text-xs block mb-1">הודעת מנהל 1 (עדכונים):</label>
+                <input type="text" value={adminMessage1} onChange={(e) => setAdminMessage1(e.target.value)} className="w-full bg-gray-800 text-white p-2 rounded-lg border border-gray-700 focus:border-red-500 outline-none text-sm" />
               </div>
               <div>
-                <label className="text-gray-300 font-bold text-sm block mb-1">הודעת מנהל 2 (הבונוס):</label>
-                <input type="text" value={adminMessage2} onChange={(e) => setAdminMessage2(e.target.value)} className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-700 focus:border-red-500 outline-none" />
+                <label className="text-gray-400 text-xs block mb-1">הודעת מנהל 2 (בונוסים):</label>
+                <input type="text" value={adminMessage2} onChange={(e) => setAdminMessage2(e.target.value)} className="w-full bg-gray-800 text-white p-2 rounded-lg border border-gray-700 focus:border-red-500 outline-none text-sm" />
               </div>
-              <p className="text-xs text-red-400 mt-2 font-bold">⚠️ הערה: כרגע ההודעות משתנות רק אצלך. בשלב הבא נחבר אותן לענן כדי שכל הליגה תראה את השינויים.</p>
             </div>
+
+            {/* הזנת תוצאות אמת */}
+            <div className="border-t border-red-900/50 pt-4">
+              <h3 className="text-white font-bold text-sm mb-3">⚽ הזנת תוצאות אמת:</h3>
+              <select value={adminMatchday} onChange={(e) => setAdminMatchday(Number(e.target.value))} className="w-full bg-red-950/30 text-red-100 p-2 rounded-lg border border-red-800/50 mb-3 text-sm outline-none font-bold">
+                {[...Array(36).keys()].map(i => <option key={i+1} value={i+1}>מחזור {i+1}</option>)}
+              </select>
+              
+              <div className="space-y-2">
+                {allFixtures[adminMatchday]?.map(game => {
+                  const key = `${adminMatchday}-${game.id}`;
+                  const actual = actualScores[key] || { homeScore: 0, awayScore: 0, isFinished: false, winner: 'X' };
+                  return (
+                    <div key={game.id} className={`flex items-center justify-between p-2 rounded-lg border ${actual.isFinished ? 'bg-red-950/20 border-red-800/50' : 'bg-gray-800 border-gray-700'}`}>
+                      <span className="text-xs font-bold w-1/4 text-right truncate text-gray-300">{game.home}</span>
+                      <div className="flex items-center justify-center space-x-1 space-x-reverse mx-1" style={{direction: 'ltr'}}>
+                        <input type="number" min="0" value={actual.awayScore} onChange={e => handleActualScoreChange(game.id, 'away', e.target.value)} className="w-10 text-center bg-gray-950 text-white border border-gray-600 rounded text-sm py-1 outline-none focus:border-red-500" disabled={actual.isFinished} />
+                        <span className="text-gray-500 font-bold px-1">:</span>
+                        <input type="number" min="0" value={actual.homeScore} onChange={e => handleActualScoreChange(game.id, 'home', e.target.value)} className="w-10 text-center bg-gray-950 text-white border border-gray-600 rounded text-sm py-1 outline-none focus:border-red-500" disabled={actual.isFinished} />
+                      </div>
+                      <span className="text-xs font-bold w-1/4 text-left truncate text-gray-300">{game.away}</span>
+                      <button onClick={() => toggleGameFinished(game.id)} className={`text-[10px] font-black px-2 py-1.5 rounded-md mr-2 w-12 transition-colors ${actual.isFinished ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-green-600 hover:text-white'}`}>
+                        {actual.isFinished ? 'נעול' : 'פתוח'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="text-xs text-red-400 mt-4 text-center font-bold">⚠️ כרגע נשמר במכשיר. בקרוב נחבר לענן!</p>
           </div>
         )}
 
-        {/* הודעות מנהל הכלליות למשתמשים */}
-        {adminMessageVisible && (
+        {/* הודעות מנהל שיוצגו לכולם */}
+        {(!isAdminMode && adminMessage1) && (
           <div className="mb-4 bg-gray-900 border border-yellow-500 rounded-xl p-4 shadow-lg text-right relative overflow-hidden">
             <div className="absolute top-0 right-0 w-2 h-full bg-yellow-500"></div>
             <h3 className="text-yellow-500 mt-0 text-lg font-bold mb-2">📣 הודעות מנהל:</h3>
-            <p className="m-1 text-sm text-gray-200">{adminMessage1}</p>
-            <p className="m-1 text-sm text-gray-200">{adminMessage2}</p>
+            {adminMessage1 && <p className="m-1 text-sm text-gray-200">{adminMessage1}</p>}
+            {adminMessage2 && <p className="m-1 text-sm text-gray-200">{adminMessage2}</p>}
           </div>
         )}
 
