@@ -465,9 +465,6 @@ export default function App() {
             </svg>
           </button>
 
-          {/* העברנו את כפתור ההתנתקות שמאלה למעלה */}
-          <button onClick={handleLogout} className="absolute top-4 left-4 text-xs bg-gray-800 text-gray-400 px-3 py-1.5 rounded border border-gray-700 hover:text-white hover:bg-gray-700 transition-colors">התנתק</button>
-
           {/* תפריט הלשוניות הנפתח (מופיע רק כשלוחצים על ההמבורגר) */}
           {isMenuOpen && (
             <div className="absolute top-16 right-4 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-2 flex flex-col gap-1 z-[999] w-48 text-right">
@@ -478,6 +475,10 @@ export default function App() {
               <button type="button" onClick={() => { setCurrentTab('stats'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>📈 סטט'</button>
               <button type="button" onClick={() => { setCurrentTab('rules'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>ℹ️ חוקים</button>
               <button type="button" onClick={() => { setCurrentTab('public'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>👁️ ניחושי כולם</button>
+              
+              <div className="h-px bg-gray-700 my-1"></div>
+              
+              <button type="button" onClick={() => { handleLogout(); setIsMenuOpen(false); }} className="px-3 py-2 text-sm font-bold rounded-lg transition-all text-red-400 hover:bg-gray-700 hover:text-red-300 text-right">🚪 התנתק</button>
             </div>
           )}
 
