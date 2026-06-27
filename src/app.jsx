@@ -67,6 +67,9 @@ export default function App() {
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
   const [isAdminMode, setIsAdminMode] = useState(false);
+  
+  // הוספת משתנה מצב לתיבת ההודעות
+  const [adminMessageVisible, setAdminMessageVisible] = useState(true);
 
   // שמירה מקומית (Local Storage)
   const [predictions, setPredictions] = useState(() => JSON.parse(localStorage.getItem('predictions')) || {});
@@ -197,33 +200,46 @@ export default function App() {
   const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-4 pb-24" style={{ direction: 'rtl' }}>
+    // שדרוג 1: הוספת סגנון הרקע (הגריד של הכדורגל) לקונטיינר הראשי
+    <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
       
-      <div className="sticky top-0 bg-gray-950/95 backdrop-blur-md pt-2 pb-3 z-50 max-w-md mx-auto border-b border-gray-900/50">
-        <header className="text-center p-4 bg-gray-900 rounded-xl border-b border-yellow-500/30 shadow-lg">
-          <h1 className="text-2xl font-extrabold text-yellow-500">🏆 10 חבר'ה - יוספטל</h1>
-          <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner">
+      <div className="sticky top-0 pt-2 pb-3 z-50 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(15, 23, 42, 0.85)' }}>
+        <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)]">
+          <h1 className="text-2xl font-extrabold text-yellow-500">🏆 ליגת יוספטל</h1>
+          {/* שדרוג 2: מונה מחוברים */}
+          <p className="text-gray-400 text-xs mt-1 font-bold">👥 מחוברים כרגע: 14</p>
+          <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner border border-gray-700">
             {liveClockText}
           </div>
         </header>
 
-        <nav className="grid grid-cols-5 gap-1 bg-gray-900 p-1 rounded-xl mt-3 border border-gray-800">
-          <button type="button" onClick={() => setCurrentTab('predictions')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>⚽ משחקים</button>
-          <button type="button" onClick={() => setCurrentTab('tournament')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>👑 הטורניר</button>
-          <button type="button" onClick={() => setCurrentTab('stats')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>📈 סטט'</button>
-          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>📊 טבלה</button>
-          <button type="button" onClick={() => setCurrentTab('rules')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950' : 'text-gray-400'}`}>ℹ️ חוקים</button>
+        <nav className="grid grid-cols-5 gap-1 bg-gray-900/90 p-1 rounded-xl mt-3 border border-gray-800 shadow-md">
+          <button type="button" onClick={() => setCurrentTab('predictions')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>⚽ משחקים</button>
+          <button type="button" onClick={() => setCurrentTab('tournament')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👑 הטורניר</button>
+          <button type="button" onClick={() => setCurrentTab('stats')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
+          <button type="button" onClick={() => setCurrentTab('leaderboard')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📊 טבלה</button>
+          <button type="button" onClick={() => setCurrentTab('rules')} className={`py-2 text-[9px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
         </nav>
       </div>
 
-      <div className="max-w-md mx-auto mt-4">
+      {/* שדרוג 3: תיבת הודעות מנהל */}
+      {adminMessageVisible && (
+        <div className="max-w-md mx-auto mt-2 mb-4 bg-gray-900 border border-yellow-500 rounded-xl p-4 shadow-lg text-right relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-2 h-full bg-yellow-500"></div>
+          <h3 className="text-yellow-500 mt-0 text-lg font-bold mb-2">📣 הודעות מנהל:</h3>
+          <p className="m-1 text-sm text-gray-200">⚽ <strong>עדכון:</strong> ניחושי מחזור 1 ייסגרו ביום ו' ב-21:00!</p>
+          <p className="m-1 text-sm text-gray-200">💰 <strong>בונוס:</strong> מי שינחש את התוצאה המדויקת של המשחק של מכבי תל אביב יזכה ב-50 נקודות!</p>
+        </div>
+      )}
+
+      <div className="max-w-md mx-auto mt-2">
         {currentTab === 'predictions' && (
           <div className="space-y-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 shadow-xl space-y-2">
-              <select value={matchday} onChange={(e) => setMatchday(Number(e.target.value))} className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:outline-none">
+            <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl space-y-2 backdrop-blur-sm">
+              <select value={matchday} onChange={(e) => setMatchday(Number(e.target.value))} className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors">
                 {[...Array(36).keys()].map(i => <option key={i+1} value={i+1}>מחזור {i+1}</option>)}
               </select>
-              {countdownText && <div className="p-2 rounded-lg text-center text-xs font-black bg-amber-950/30 border border-amber-900/60 text-amber-400">{countdownText}</div>}
+              {countdownText && <div className="p-2 rounded-lg text-center text-xs font-black bg-amber-950/40 border border-amber-900/60 text-amber-400 shadow-inner">{countdownText}</div>}
             </div>
 
             {allFixtures[matchday]?.map(game => {
@@ -234,86 +250,86 @@ export default function App() {
               const isJoker = jokers[matchday] === game.id;
 
               return (
-                <div key={game.id} className={`border rounded-xl p-4 shadow-md space-y-3 ${isJoker ? 'bg-gradient-to-br from-gray-900 to-amber-950/40 border-yellow-600/60' : 'bg-gray-900 border-gray-800'}`}>
+                <div key={game.id} className={`border rounded-xl p-4 shadow-md space-y-3 transition-all ${isJoker ? 'bg-gradient-to-br from-gray-900 to-amber-950/40 border-yellow-600/60 shadow-[0_0_15px_rgba(217,119,6,0.15)]' : 'bg-gray-900/80 border-gray-800 hover:border-gray-700'}`}>
                   <div className="flex justify-between items-center text-xs text-gray-400">
-                    <span>{game.time}</span>
-                    <button type="button" disabled={isLocked} onClick={() => toggleJoker(game.id, isLocked)} className={`px-2 py-0.5 rounded text-[10px] font-black border ${isJoker ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-950 text-gray-500'}`}>
+                    <span className="bg-gray-950 px-2 py-1 rounded-md border border-gray-800">{game.time}</span>
+                    <button type="button" disabled={isLocked} onClick={() => toggleJoker(game.id, isLocked)} className={`px-2 py-1 rounded-md text-[10px] font-black border transition-colors ${isJoker ? 'bg-yellow-500 text-black border-yellow-500 shadow-sm' : 'bg-gray-950 text-gray-500 border-gray-800 hover:bg-gray-800'}`}>
                       {isJoker ? "🃏 ג'וקר פעיל!" : "🃏 סמן ג'וקר"}
                     </button>
                   </div>
-                  <div className="flex justify-between items-center py-1">
+                  <div className="flex justify-between items-center py-2 border-y border-gray-800/50 mt-2 mb-1">
                     <span className="font-bold text-base w-5/12 text-right">{game.home}</span>
-                    <span className="text-gray-600 text-xs font-black">VS</span>
+                    <span className="text-gray-500 text-xs font-black bg-gray-950 px-2 py-1 rounded-full">VS</span>
                     <span className="font-bold text-base w-5/12 text-left">{game.away}</span>
                   </div>
                   {!isLocked ? (
-                    <div className="flex justify-between items-center bg-gray-950 p-3 rounded-xl border border-gray-800" style={{ direction: 'ltr' }}>
-                      <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden">
-                        <button type="button" onClick={() => handleScoreChange(game.id, 'away', -1)} className="px-2 py-1 text-gray-400 font-bold">-</button>
-                        <span className="px-3 py-1 font-black text-yellow-500 min-w-[24px] text-center">{pred.awayScore}</span>
-                        <button type="button" onClick={() => handleScoreChange(game.id, 'away', 1)} className="px-2 py-1 text-gray-400 font-bold">+</button>
+                    <div className="flex justify-between items-center bg-gray-950/80 p-3 rounded-xl border border-gray-800" style={{ direction: 'ltr' }}>
+                      <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                        <button type="button" onClick={() => handleScoreChange(game.id, 'away', -1)} className="px-3 py-1.5 text-gray-400 font-bold hover:bg-gray-700 hover:text-white transition-colors">-</button>
+                        <span className="px-3 py-1.5 font-black text-yellow-500 min-w-[30px] text-center bg-gray-900">{pred.awayScore}</span>
+                        <button type="button" onClick={() => handleScoreChange(game.id, 'away', 1)} className="px-3 py-1.5 text-gray-400 font-bold hover:bg-gray-700 hover:text-white transition-colors">+</button>
                       </div>
-                      <span className="text-gray-600 font-black">:</span>
-                      <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden">
-                        <button type="button" onClick={() => handleScoreChange(game.id, 'home', -1)} className="px-2 py-1 text-gray-400 font-bold">-</button>
-                        <span className="px-3 py-1 font-black text-yellow-500 min-w-[24px] text-center">{pred.homeScore}</span>
-                        <button type="button" onClick={() => handleScoreChange(game.id, 'home', 1)} className="px-2 py-1 text-gray-400 font-bold">+</button>
+                      <span className="text-gray-500 font-black">:</span>
+                      <div className="flex items-center bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                        <button type="button" onClick={() => handleScoreChange(game.id, 'home', -1)} className="px-3 py-1.5 text-gray-400 font-bold hover:bg-gray-700 hover:text-white transition-colors">-</button>
+                        <span className="px-3 py-1.5 font-black text-yellow-500 min-w-[30px] text-center bg-gray-900">{pred.homeScore}</span>
+                        <button type="button" onClick={() => handleScoreChange(game.id, 'home', 1)} className="px-3 py-1.5 text-gray-400 font-bold hover:bg-gray-700 hover:text-white transition-colors">+</button>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-gray-950 p-2 text-center rounded-lg text-xs text-gray-400">הניחוש השמור: <span className="text-white font-bold">{pred.winner ? `${pred.homeScore}-${pred.awayScore}` : 'אין'}</span></div>
+                    <div className="bg-gray-950 p-3 text-center rounded-lg text-sm text-gray-400 border border-gray-800/50">הניחוש השמור: <span className="text-yellow-500 font-bold ml-2 text-base">{pred.winner ? `${pred.homeScore} - ${pred.awayScore}` : 'אין'}</span></div>
                   )}
-                  <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div className="grid grid-cols-3 gap-2 pt-2">
                     {['1', 'X', '2'].map(o => (
-                      <button key={o} type="button" disabled={isLocked} onClick={() => handlePredict(game.id, o)} className={`py-1.5 text-xs font-black rounded-lg border ${pred.winner === o ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-800 border-gray-700'}`}>{o === '1' ? '1' : o === 'X' ? 'X' : '2'}</button>
+                      <button key={o} type="button" disabled={isLocked} onClick={() => handlePredict(game.id, o)} className={`py-2 text-sm font-black rounded-lg border transition-all ${pred.winner === o ? 'bg-yellow-500 text-black border-yellow-500 shadow-md transform scale-[1.02]' : 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300'}`}>{o === '1' ? '1' : o === 'X' ? 'X' : '2'}</button>
                     ))}
                   </div>
                 </div>
               );
             })}
-            <button type="button" onClick={() => alert('הניחושים נשמרו במכשיר בהצלחה!')} className="w-full bg-yellow-500 text-gray-950 font-black py-4 rounded-xl shadow-xl border border-yellow-600 text-sm">💾 שמור ניחושים</button>
+            <button type="button" onClick={() => alert('הניחושים נשמרו במכשיר בהצלחה!')} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור ניחושים</button>
           </div>
         )}
 
         {currentTab === 'tournament' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4 shadow-2xl">
-            <h2 className="text-lg font-black text-yellow-500 text-center mb-2">📝 הניחושים המיוחדים שלי</h2>
+          <div className="bg-gray-900/90 border border-gray-800 rounded-2xl p-6 space-y-5 shadow-2xl backdrop-blur-sm">
+            <h2 className="text-xl font-black text-yellow-500 text-center mb-4 border-b border-gray-800 pb-3">📝 הניחושים המיוחדים שלי</h2>
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1">🏆 הקבוצה האהודה שלי בארץ:</label>
-              <select value={tournament.favoriteTeam} onChange={(e) => setTournament({...tournament, favoriteTeam: e.target.value})} className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:outline-none text-sm">
+              <label className="block text-sm font-bold text-gray-300 mb-2">🏆 הקבוצה האהודה שלי בארץ:</label>
+              <select value={tournament.favoriteTeam} onChange={(e) => setTournament({...tournament, favoriteTeam: e.target.value})} className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors">
                 <option value="">-- בחר קבוצה --</option>
                 {ISRAELI_TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1">🏆 האלופה שלי:</label>
-              <input type="text" value={tournament.champion} onChange={(e) => setTournament({...tournament, champion: e.target.value})} placeholder="הקלד את שם האלופה..." className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 text-sm focus:outline-none"/>
+              <label className="block text-sm font-bold text-gray-300 mb-2">🏆 האלופה שלי:</label>
+              <input type="text" value={tournament.champion} onChange={(e) => setTournament({...tournament, champion: e.target.value})} placeholder="הקלד את שם האלופה..." className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors"/>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1">👟 מלך השערים שלי:</label>
-              <input type="text" value={tournament.topScorer} onChange={(e) => setTournament({...tournament, topScorer: e.target.value})} placeholder="הקלד את מלך השערים..." className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 text-sm focus:outline-none"/>
+              <label className="block text-sm font-bold text-gray-300 mb-2">👟 מלך השערים שלי:</label>
+              <input type="text" value={tournament.topScorer} onChange={(e) => setTournament({...tournament, topScorer: e.target.value})} placeholder="הקלד את מלך השערים..." className="w-full bg-gray-800 p-3.5 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors"/>
             </div>
-            <button type="button" onClick={() => alert('הבחירות ארוכות הטווח עודכנו בהצלחה!')} className="w-full bg-yellow-500 text-gray-950 font-black py-3.5 rounded-xl border border-yellow-600 text-sm mt-2">💾 שמור שינויים</button>
+            <button type="button" onClick={() => alert('הבחירות ארוכות הטווח עודכנו בהצלחה!')} className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-black py-4 rounded-xl border border-yellow-600 text-base mt-4 transition-colors shadow-md">💾 שמור שינויים</button>
           </div>
         )}
 
         {currentTab === 'leaderboard' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 shadow-xl">
-            <h2 className="text-lg font-bold text-gray-200 mb-3">📊 מצב הטבלה הכללית</h2>
-            <div className="overflow-hidden rounded-lg border border-gray-800">
+          <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm">
+            <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2">📊 מצב הטבלה הכללית</h2>
+            <div className="overflow-hidden rounded-lg border border-gray-700 shadow-sm">
               <table className="w-full text-right border-collapse">
                 <thead>
-                  <tr className="bg-gray-800 text-gray-400 text-xs">
-                    <th className="p-3">מיקום</th>
+                  <tr className="bg-gray-800 text-gray-300 text-sm">
+                    <th className="p-3 w-16 text-center">מיקום</th>
                     <th className="p-3">שם המנחש</th>
-                    <th className="p-3 text-center">נקודות</th>
+                    <th className="p-3 text-center w-24">נקודות</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
-                  <tr className="bg-gray-900">
-                    <td className="p-3 font-bold text-center text-xs text-gray-400 bg-gray-950/20">1</td>
-                    <td className="p-3 font-medium text-gray-100">אייל אשכנזי{userTeamSuffix}</td>
-                    <td className="p-3 text-center font-bold text-yellow-500 bg-gray-950/40">{stats.totalPoints}</td>
+                  <tr className="bg-gray-900 hover:bg-gray-800/50 transition-colors">
+                    <td className="p-4 font-black text-center text-lg text-yellow-500 bg-gray-950/30">1</td>
+                    <td className="p-4 font-bold text-gray-100">אייל אשכנזי{userTeamSuffix}</td>
+                    <td className="p-4 text-center font-black text-yellow-500 bg-gray-950/50 text-lg">{stats.totalPoints}</td>
                   </tr>
                 </tbody>
               </table>
@@ -322,20 +338,28 @@ export default function App() {
         )}
 
         {currentTab === 'rules' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 shadow-md text-sm leading-relaxed text-gray-300 space-y-3">
-            <h2 className="text-yellow-500 font-black text-lg flex items-center gap-2">🎯 שיטת הניקוד המעודכנת</h2>
-            <p>• ניחוש כיוון (1,X,2) נכון: מעניק <span className="text-white">2 נקודות</span>.</p>
-            <p>• ניחוש תוצאה מדויקת נכון: מוסיף עוד <span className="text-yellow-500 font-bold">4 נק' בונוס</span> (סה"כ 6 נקודות).</p>
-            <p>• <span className="text-yellow-500 font-bold">🃏 חוק הג'וקר:</span> משחק שסומן כג'וקר (אחד למחזור) מקבל כפל ניקוד.</p>
+          <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-md text-base leading-relaxed text-gray-300 space-y-4 backdrop-blur-sm">
+            <h2 className="text-yellow-500 font-black text-xl flex items-center gap-2 border-b border-gray-800 pb-2">🎯 שיטת הניקוד המעודכנת</h2>
+            <p className="flex items-start gap-2"><span>•</span> <span>ניחוש כיוון (1,X,2) נכון: מעניק <span className="text-white font-bold bg-gray-800 px-2 py-0.5 rounded">2 נקודות</span>.</span></p>
+            <p className="flex items-start gap-2"><span>•</span> <span>ניחוש תוצאה מדויקת נכון: מוסיף עוד <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">4 נק' בונוס</span> (סה"כ 6 נקודות).</span></p>
+            <div className="bg-gray-950 p-3 rounded-lg border border-yellow-900/50 mt-2">
+              <p><span className="text-yellow-500 font-bold">🃏 חוק הג'וקר:</span> משחק שסומן כג'וקר (אחד למחזור) מקבל כפל ניקוד על הניחוש שלו.</p>
+            </div>
           </div>
         )}
       </div>
 
-      <footer className="max-w-md mx-auto mt-12 text-center">
-        <button type="button" onClick={loginAsAdmin} className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isAdminMode ? 'bg-red-950 border-red-800 text-red-400' : 'bg-gray-900 border-gray-800 text-gray-500 hover:text-white'}`}>
+      <footer className="max-w-md mx-auto mt-16 mb-8 text-center">
+        <button type="button" onClick={loginAsAdmin} className={`px-5 py-2.5 text-sm font-bold rounded-lg border transition-all ${isAdminMode ? 'bg-red-950/80 border-red-800 text-red-400 hover:bg-red-900' : 'bg-gray-900/80 border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-600'}`}>
           {isAdminMode ? '🔒 צא ממצב מנהל' : '🔧 ניהול מערכת (הזנת תוצאות)'}
         </button>
       </footer>
+
+      {/* שדרוג 4: בר התוצאות החיות שנדבק לתחתית (Live) */}
+      <div className="fixed bottom-0 left-0 w-full bg-gray-950/95 backdrop-blur-md border-t border-gray-800 p-3 text-center text-sm font-medium text-gray-300 z-[1000] shadow-[0_-5px_15px_-3px_rgba(0,0,0,0.5)]">
+        <span className="inline-block w-2 h-2 bg-red-500 rounded-full ml-2 animate-pulse"></span>
+        תוצאות חיות: מכבי תל אביב 2 - הפועל חיפה 0 (מחצית)
+      </div>
     </div>
   );
 }
