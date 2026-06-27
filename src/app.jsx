@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { auth } from './firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 
 // מאגר כל 36 מחזורי הליגה המלאים 
 const allFixtures = {
@@ -62,40 +64,41 @@ const isGameLockedByDate = (dateStr) => {
 };
 
 export default function App() {
+  // --- מערכת משתמשים (Firebase Auth) ---
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // --- מצבי האפליקציה ---
   const [currentTab, setCurrentTab] = useState('predictions');
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
   const [isAdminMode, setIsAdminMode] = useState(false);
-  
-  // הוספת משתנה מצב לתיבת ההודעות
   const [adminMessageVisible, setAdminMessageVisible] = useState(true);
 
-  // שמירה מקומית (Local Storage)
+  // שמירה מקומית בינתיים (בשדרוג הבא נעביר את הכל למסד הנתונים בענן)
   const [predictions, setPredictions] = useState(() => JSON.parse(localStorage.getItem('predictions')) || {});
-  const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', topAssists: '', favoriteTeam: '' });
+  const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState(() => JSON.parse(localStorage.getItem('jokers')) || {});
   const [actualScores, setActualScores] = useState(() => JSON.parse(localStorage.getItem('actualScores')) || {});
-  const [matchdayGoals, setMatchdayGoals] = useState(() => JSON.parse(localStorage.getItem('matchdayGoals')) || {});
 
-  const loginAsAdmin = () => {
-    if (isAdminMode) {
-      setIsAdminMode(false);
-    } else {
-      const pass = prompt('הכנס סיסמת מנהל:');
-      if (pass === '2531') {
-        setIsAdminMode(true);
-      } else if (pass !== null) {
-        alert('סיסמה שגויה!');
-      }
-    }
-  };
+  // מאזין לשינויים בחיבור המשתמש
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsCheckingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => { localStorage.setItem('predictions', JSON.stringify(predictions)); }, [predictions]);
   useEffect(() => { localStorage.setItem('tournament', JSON.stringify(tournament)); }, [tournament]);
   useEffect(() => { localStorage.setItem('jokers', JSON.stringify(jokers)); }, [jokers]);
   useEffect(() => { localStorage.setItem('actualScores', JSON.stringify(actualScores)); }, [actualScores]);
-  useEffect(() => { localStorage.setItem('matchdayGoals', JSON.stringify(matchdayGoals)); }, [matchdayGoals]);
 
   useEffect(() => {
     const updateClock = () => {
@@ -132,6 +135,41 @@ export default function App() {
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [matchday]);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      if (isLoginMode) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err) {
+      if (err.code === 'auth/invalid-email') setAuthError('כתובת אימייל לא תקינה');
+      else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') setAuthError('אימייל או סיסמה שגויים');
+      else if (err.code === 'auth/email-already-in-use') setAuthError('האימייל הזה כבר רשום במערכת');
+      else if (err.code === 'auth/weak-password') setAuthError('הסיסמה חלשה מדי (לפחות 6 תווים)');
+      else setAuthError('שגיאה בהתחברות. נסה שוב.');
+    }
+  };
+
+  const handleLogout = () => {
+    signOut(auth);
+  };
+
+  const loginAsAdmin = () => {
+    if (isAdminMode) {
+      setIsAdminMode(false);
+    } else {
+      const pass = prompt('הכנס סיסמת מנהל:');
+      if (pass === '2531') {
+        setIsAdminMode(true);
+      } else if (pass !== null) {
+        alert('סיסמה שגויה!');
+      }
+    }
+  };
 
   const handlePredict = (gameId, value) => {
     setPredictions(prev => {
@@ -181,31 +219,64 @@ export default function App() {
         matchPoints += localPoints;
       }
     });
-
-    let liveGoalsPoints = 0;
-    const currentScorer = tournament.topScorer || '';
-    if (currentScorer.trim()) {
-      Object.keys(matchdayGoals).forEach(key => {
-        const parts = key.split('-');
-        if (parts.length >= 2 && parts[1].trim() === currentScorer.trim()) {
-          liveGoalsPoints += (matchdayGoals[key] || 0) * 2;
-        }
-      });
-    }
-
-    return { totalPoints: matchPoints + liveGoalsPoints };
+    return { totalPoints: matchPoints };
   };
 
+  // מסך טעינה בזמן שהאפליקציה בודקת אם המשתמש מחובר
+  if (isCheckingAuth) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים...</div>;
+  }
+
+  // מסך ההתחברות (אם המשתמש לא מחובר)
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 text-white" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
+        <div className="bg-gray-900/90 border-2 border-yellow-500 rounded-2xl p-8 shadow-[0_0_30px_rgba(234,179,8,0.2)] max-w-sm w-full backdrop-blur-md">
+          <h1 className="text-3xl font-black text-yellow-500 text-center mb-2">🏆 ליגת יוספטל</h1>
+          <p className="text-gray-400 text-center text-sm mb-8 font-bold">התחבר כדי להתחיל לנחש</p>
+          
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-300 mb-1">אימייל:</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'ltr' }} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-300 mb-1">סיסמה (לפחות 6 תווים):</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'ltr' }} />
+            </div>
+            
+            {authError && <div className="text-red-500 text-sm font-bold text-center bg-red-950/50 p-2 rounded border border-red-800">{authError}</div>}
+            
+            <button type="submit" className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-3 rounded-xl shadow-lg border border-yellow-400 mt-4 transition-all transform hover:-translate-y-1">
+              {isLoginMode ? 'כניסה למשחק ⚽' : 'הרשמה לליגה 📝'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-gray-400">
+            {isLoginMode ? 'עדיין לא רשום? ' : 'כבר יש לך חשבון? '}
+            <button onClick={() => { setIsLoginMode(!isLoginMode); setAuthError(''); }} className="text-yellow-500 font-bold hover:underline">
+              {isLoginMode ? 'לחץ כאן להרשמה' : 'לחץ כאן להתחברות'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- האפליקציה המרכזית (אם המשתמש מחובר) ---
   const stats = getLiveStatistics();
   const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
+  const username = user.email.split('@')[0]; // לוקח את החלק שלפני ה-@ באימייל כשם זמני
 
   return (
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
       
       <div className="sticky top-0 pt-2 pb-3 z-50 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(15, 23, 42, 0.85)' }}>
-        <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)]">
+        <header className="text-center p-4 bg-gray-900 rounded-xl border-b-2 border-yellow-500 shadow-[0_4px_15px_-3px_rgba(234,179,8,0.2)] relative">
+          <button onClick={handleLogout} className="absolute top-4 left-4 text-xs font-bold bg-gray-800 text-gray-400 px-3 py-1.5 rounded-lg border border-gray-700 hover:text-white hover:bg-gray-700 transition-colors">התנתק</button>
+          
           <h1 className="text-2xl font-extrabold text-yellow-500">🏆 ליגת יוספטל</h1>
-          <p className="text-gray-400 text-xs mt-1 font-bold">👥 מחוברים כרגע: 14</p>
+          <p className="text-gray-300 text-sm mt-1 font-bold">שלום, <span className="text-yellow-500">{username}</span> 👋</p>
           <div className="text-sm text-white font-bold mt-2 bg-gray-800 inline-block px-4 py-1 rounded-full shadow-inner border border-gray-700">
             {liveClockText}
           </div>
@@ -325,7 +396,7 @@ export default function App() {
                 <tbody className="divide-y divide-gray-800">
                   <tr className="bg-gray-900 hover:bg-gray-800/50 transition-colors">
                     <td className="p-4 font-black text-center text-lg text-yellow-500 bg-gray-950/30">1</td>
-                    <td className="p-4 font-bold text-gray-100">אייל אשכנזי{userTeamSuffix}</td>
+                    <td className="p-4 font-bold text-gray-100">{username}{userTeamSuffix}</td>
                     <td className="p-4 text-center font-black text-yellow-500 bg-gray-950/50 text-lg">{stats.totalPoints}</td>
                   </tr>
                 </tbody>
