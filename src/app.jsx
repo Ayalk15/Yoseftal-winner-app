@@ -90,7 +90,6 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState(() => JSON.parse(localStorage.getItem('chatMessages')) || []);
   const [newChatMessage, setNewChatMessage] = useState('');
 
-  // מצבים חדשים לניהול הטורניר ולסיום עונה
   const [isTournamentLocked, setIsTournamentLocked] = useState(() => JSON.parse(localStorage.getItem('isTournamentLocked')) || false);
   const [seasonResults, setSeasonResults] = useState(() => JSON.parse(localStorage.getItem('seasonResults')) || { champion: '', topScorer: '' });
   const [playerGoals, setPlayerGoals] = useState(() => JSON.parse(localStorage.getItem('playerGoals')) || {});
@@ -357,7 +356,6 @@ export default function App() {
       }
     });
 
-    // בונוסים לטורניר מחושבים אוטומטית אם המנהל הזין תוצאות סיום
     if (seasonResults.champion && tournament.champion === seasonResults.champion) {
       matchPoints += 50;
     }
@@ -441,9 +439,9 @@ export default function App() {
           <button type="button" onClick={() => setCurrentTab('chat')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>💬 צ'אט</button>
           <button type="button" onClick={() => setCurrentTab('stats')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>📈 סטט'</button>
           <button type="button" onClick={() => setCurrentTab('rules')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>ℹ️ חוקים</button>
-          {lockedMatchdays[matchday] && (
-             <button type="button" onClick={() => setCurrentTab('public')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👁️ ניחושי כולם</button>
-          )}
+          
+          {/* הלשונית החדשה תמיד מופיעה. התוכן שלה יוסתר אם המחזור פתוח */}
+          <button type="button" onClick={() => setCurrentTab('public')} className={`px-2 py-2 text-[11px] font-black rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:bg-gray-800'}`}>👁️ ניחושי כולם</button>
         </nav>
       </div>
 
@@ -556,14 +554,26 @@ export default function App() {
           </div>
         )}
 
-        {currentTab === 'public' && lockedMatchdays[matchday] && (
+        {/* תוכן הלשונית החדשה: ניחושי כולם */}
+        {currentTab === 'public' && (
            <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl">
              <h2 className="text-xl font-bold text-yellow-500 mb-4">👁️ ניחושי כולם - מחזור {matchday}</h2>
-             <p className="text-sm text-gray-400 mb-4">כאן יופיעו הניחושים של כל המשתמשים לאחר חיבור מלא למסד הנתונים בענן.</p>
-             <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
-                <span className="font-bold text-white">{username} (אתה)</span>
-                <div className="text-xs text-gray-400 mt-1">נקודות למחזור זה: {getMatchdayPoints(matchday)}</div>
-             </div>
+             
+             {!lockedMatchdays[matchday] ? (
+               <div className="text-center py-8">
+                 <div className="text-4xl mb-3">🔒</div>
+                 <h3 className="text-lg font-bold text-gray-300">הניחושים חסויים!</h3>
+                 <p className="text-sm text-gray-500 mt-2">כדי למנוע העתקות, הניחושים של כולם ייחשפו כאן רק לאחר שהמנהל ינעל את המחזור.</p>
+               </div>
+             ) : (
+               <div>
+                 <p className="text-sm text-gray-400 mb-4">המחזור נעול! להלן הניחושים של המשתמשים (בחיבור המלא ל-Firebase תראה כאן את כולם):</p>
+                 <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                    <span className="font-bold text-white">{username} (אתה)</span>
+                    <div className="text-xs text-gray-400 mt-1">נקודות למחזור זה: {getMatchdayPoints(matchday)}</div>
+                 </div>
+               </div>
+             )}
            </div>
         )}
 
