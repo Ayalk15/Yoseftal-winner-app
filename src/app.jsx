@@ -64,6 +64,7 @@ const isGameLockedByDate = (dateStr) => {
 };
 
 export default function App() {
+  // --- מערכת משתמשים ---
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,6 +72,7 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  // --- מצבי אפליקציה וניהול ---
   const [currentTab, setCurrentTab] = useState('predictions');
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
@@ -78,11 +80,17 @@ export default function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminMessageVisible, setAdminMessageVisible] = useState(true);
 
+  // הודעות מנהל דינמיות
+  const [adminMessage1, setAdminMessage1] = useState(() => localStorage.getItem('adminMsg1') || "⚽ עדכון: ניחושי מחזור 1 ייסגרו ביום ו' ב-21:00!");
+  const [adminMessage2, setAdminMessage2] = useState(() => localStorage.getItem('adminMsg2') || "💰 בונוס: מי שינחש את התוצאה המדויקת של המשחק של מכבי תל אביב יזכה ב-50 נקודות!");
+
+  // --- נתונים נשמרים ---
   const [predictions, setPredictions] = useState(() => JSON.parse(localStorage.getItem('predictions')) || {});
   const [tournament, setTournament] = useState(() => JSON.parse(localStorage.getItem('tournament')) || { champion: '', topScorer: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState(() => JSON.parse(localStorage.getItem('jokers')) || {});
   const [actualScores, setActualScores] = useState(() => JSON.parse(localStorage.getItem('actualScores')) || {});
 
+  // מאזינים ושמירות
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -95,6 +103,8 @@ export default function App() {
   useEffect(() => { localStorage.setItem('tournament', JSON.stringify(tournament)); }, [tournament]);
   useEffect(() => { localStorage.setItem('jokers', JSON.stringify(jokers)); }, [jokers]);
   useEffect(() => { localStorage.setItem('actualScores', JSON.stringify(actualScores)); }, [actualScores]);
+  useEffect(() => { localStorage.setItem('adminMsg1', adminMessage1); }, [adminMessage1]);
+  useEffect(() => { localStorage.setItem('adminMsg2', adminMessage2); }, [adminMessage2]);
 
   useEffect(() => {
     const updateClock = () => {
@@ -132,6 +142,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [matchday]);
 
+  // --- פונקציות מרכזיות ---
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -216,6 +227,7 @@ export default function App() {
     return { totalPoints: matchPoints };
   };
 
+  // --- תצוגות (רינדור) ---
   if (isCheckingAuth) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים...</div>;
   }
@@ -236,9 +248,7 @@ export default function App() {
               <label className="block text-sm font-bold text-gray-300 mb-1">סיסמה (לפחות 6 תווים):</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:border-yellow-500 focus:outline-none" style={{ direction: 'ltr' }} />
             </div>
-            
             {authError && <div className="text-red-500 text-sm font-bold text-center bg-red-950/50 p-2 rounded border border-red-800">{authError}</div>}
-            
             <button type="submit" className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-3 rounded-xl shadow-lg border border-yellow-400 mt-4 transition-all transform hover:-translate-y-1">
               {isLoginMode ? 'כניסה למשחק ⚽' : 'הרשמה לליגה 📝'}
             </button>
@@ -282,16 +292,36 @@ export default function App() {
         </nav>
       </div>
 
-      {adminMessageVisible && (
-        <div className="max-w-md mx-auto mt-2 mb-4 bg-gray-900 border border-yellow-500 rounded-xl p-4 shadow-lg text-right relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-2 h-full bg-yellow-500"></div>
-          <h3 className="text-yellow-500 mt-0 text-lg font-bold mb-2">📣 הודעות מנהל:</h3>
-          <p className="m-1 text-sm text-gray-200">⚽ <strong>עדכון:</strong> ניחושי מחזור 1 ייסגרו ביום ו' ב-21:00!</p>
-          <p className="m-1 text-sm text-gray-200">💰 <strong>בונוס:</strong> מי שינחש את התוצאה המדויקת של המשחק של מכבי תל אביב יזכה ב-50 נקודות!</p>
-        </div>
-      )}
-
       <div className="max-w-md mx-auto mt-2">
+        
+        {/* פאנל ניהול שמופיע רק למנהל */}
+        {isAdminMode && (
+          <div className="bg-gray-900 border-2 border-red-600 rounded-xl p-5 mb-4 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
+            <h2 className="text-red-500 font-black text-xl mb-4 border-b border-red-800 pb-2">🔧 פאנל ניהול מערכת</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-300 font-bold text-sm block mb-1">הודעת מנהל 1 (מופיעה למעלה):</label>
+                <input type="text" value={adminMessage1} onChange={(e) => setAdminMessage1(e.target.value)} className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-700 focus:border-red-500 outline-none" />
+              </div>
+              <div>
+                <label className="text-gray-300 font-bold text-sm block mb-1">הודעת מנהל 2 (הבונוס):</label>
+                <input type="text" value={adminMessage2} onChange={(e) => setAdminMessage2(e.target.value)} className="w-full bg-gray-800 text-white p-3 rounded-lg border border-gray-700 focus:border-red-500 outline-none" />
+              </div>
+              <p className="text-xs text-red-400 mt-2 font-bold">⚠️ הערה: כרגע ההודעות משתנות רק אצלך. בשלב הבא נחבר אותן לענן כדי שכל הליגה תראה את השינויים.</p>
+            </div>
+          </div>
+        )}
+
+        {/* הודעות מנהל הכלליות למשתמשים */}
+        {adminMessageVisible && (
+          <div className="mb-4 bg-gray-900 border border-yellow-500 rounded-xl p-4 shadow-lg text-right relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-2 h-full bg-yellow-500"></div>
+            <h3 className="text-yellow-500 mt-0 text-lg font-bold mb-2">📣 הודעות מנהל:</h3>
+            <p className="m-1 text-sm text-gray-200">{adminMessage1}</p>
+            <p className="m-1 text-sm text-gray-200">{adminMessage2}</p>
+          </div>
+        )}
+
         {currentTab === 'predictions' && (
           <div className="space-y-4">
             <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl space-y-2 backdrop-blur-sm">
