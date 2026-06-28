@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from './firebase'; // חובה לוודא ש-db מיוצא מקובץ ה-firebase.js שלך
+import { auth, db } from './firebase'; 
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 
@@ -100,7 +100,7 @@ export default function App() {
   // App Global State
   const [chatMessages, setChatMessages] = useState([]);
   const [newChatMessage, setNewChatMessage] = useState('');
-  const [allUsersData, setAllUsersData] = useState({}); // מאגר כל המשתמשים לטבלה ולניחושים פומביים
+  const [allUsersData, setAllUsersData] = useState({}); 
 
   // האזנה למצב התחברות
   useEffect(() => {
@@ -113,7 +113,6 @@ export default function App() {
 
   // האזנה בזמן אמת לנתונים מהענן
   useEffect(() => {
-    // 1. האזנה להגדרות גלובליות מנהל
     const unsubGlobal = onSnapshot(doc(db, "league", "global"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -127,14 +126,12 @@ export default function App() {
       }
     });
 
-    // 2. האזנה להודעות צ'אט
     const unsubChat = onSnapshot(doc(db, "league", "chat"), (docSnap) => {
       if (docSnap.exists()) {
         setChatMessages(docSnap.data().messages || []);
       }
     });
 
-    // 3. האזנה לכלל המשתמשים (בשביל הטבלה ולשונית כולם)
     const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
       const usersMap = {};
       snapshot.forEach(d => {
@@ -150,7 +147,7 @@ export default function App() {
     };
   }, []);
 
-  // שליפת הנתונים האישיים של המשתמש כשהוא מתחבר
+  // שליפת הנתונים האישיים
   useEffect(() => {
     if (user) {
       getDoc(doc(db, "users", user.uid)).then(docSnap => {
@@ -225,7 +222,6 @@ export default function App() {
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: nickname });
-        // שמירת המסמך הראשון בענן למשתמש חדש
         await setDoc(doc(db, "users", userCredential.user.uid), {
            displayName: nickname,
            predictions: {},
@@ -276,7 +272,6 @@ export default function App() {
     }
   };
 
-  // פונקציות שמירה לענן (החלפה של LocalStorage)
   const handleSaveUserData = async () => {
     if (!user) return;
     try {
@@ -309,7 +304,6 @@ export default function App() {
     }
   };
 
-  // ניהול מנהל פנימי (משפיע מקומית עד הלחיצה על שמירה)
   const toggleMatchdayLock = (md, shouldLock) => {
     setLockedMatchdays(prev => ({ ...prev, [md]: shouldLock }));
   };
@@ -349,7 +343,6 @@ export default function App() {
     });
   };
 
-  // ניהול ניחושים שחקן פנימי
   const handlePredict = (gameId, value) => {
     if (lockedMatchdays[matchday]) { alert('המחזור נעול ולא ניתן לעדכן ניחושים'); return; }
     setPredictions(prev => {
@@ -400,14 +393,11 @@ export default function App() {
     };
 
     const newChatArray = [...chatMessages, msg];
-    setChatMessages(newChatArray); // עדכון מקומי מהיר
+    setChatMessages(newChatArray); 
     setNewChatMessage('');
-    
-    // דחיפה לענן
     await setDoc(doc(db, "league", "chat"), { messages: newChatArray }, { merge: true });
   };
 
-  // חישוב נקודות כללי למשתמש ספציפי (לפי הענן)
   const calculatePointsForUser = (userData) => {
     let pts = 0;
     const uPreds = userData.predictions || {};
@@ -438,7 +428,6 @@ export default function App() {
     return pts;
   };
 
-  // חישוב נקודות למחזור ספציפי למשתמש (עבור הלשונית הפומבית וה-MVP)
   const getMatchdayPointsForUser = (md, userData) => {
     let pts = 0;
     const uPreds = userData.predictions || {};
@@ -463,7 +452,6 @@ export default function App() {
     return pts;
   };
 
-  // יצירת מערך הטבלה מכלל המשתמשים ממוין לפי ניקוד
   const leaderboardArr = Object.values(allUsersData).map(u => ({
      name: u.displayName || 'משתמש',
      team: u.tournament?.favoriteTeam || '',
@@ -482,8 +470,52 @@ export default function App() {
     return `עדיין אין נתונים למחזור ${matchday}`;
   };
 
-  // נתונים אישיים לשליפה מהירה לסטט' המקומית
   const myStats = calculatePointsForUser({ predictions, tournament, jokers });
+
+  // --- חישובי סטטיסטיקה מתקדמים ---
+  let totalFinishedPredictions = 0;
+  let directionHits = 0;
+  let exactHits = 0;
+  
+  Object.keys(actualScores).forEach(key => {
+    const actual = actualScores[key];
+    const pred = predictions[key];
+    if (actual && actual.isFinished && pred && pred.winner) {
+      totalFinishedPredictions++;
+      if (pred.winner === actual.winner) {
+        directionHits++;
+        if (Number(pred.homeScore) === Number(actual.homeScore) && Number(pred.awayScore) === Number(actual.awayScore)) {
+          exactHits++;
+        }
+      }
+    }
+  });
+  const hitRatePct = totalFinishedPredictions > 0 ? Math.round((directionHits / totalFinishedPredictions) * 100) : 0;
+
+  let bestMatchday = 1;
+  let maxMdPts = -1;
+  for (let i = 1; i <= 36; i++) {
+      const pts = getMatchdayPointsForUser(i, {predictions, jokers});
+      if (pts > maxMdPts) {
+          maxMdPts = pts;
+          bestMatchday = i;
+      }
+  }
+
+  let loyaltyCount = 0;
+  if (tournament.favoriteTeam) {
+      Object.keys(allFixtures).forEach(md => {
+          allFixtures[md].forEach(game => {
+              if (game.home === tournament.favoriteTeam || game.away === tournament.favoriteTeam) {
+                  const gKey = `${md}-${game.id}`;
+                  if (predictions[gKey] && predictions[gKey].winner) {
+                      loyaltyCount++;
+                  }
+              }
+          });
+      });
+  }
+  // --- סוף חישובי סטטיסטיקה מתקדמים ---
 
   if (isCheckingAuth) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
@@ -669,7 +701,6 @@ export default function App() {
                </div>
             </div>
             
-            {/* כפתור שמירת מנהל בענן - חדש וחשוב */}
             <button onClick={handleSaveAdminData} className="w-full mt-6 bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl shadow-lg border border-red-800 text-base transition-all">
                💾 שמור שינויי מנהל בענן
             </button>
@@ -894,11 +925,64 @@ export default function App() {
         )}
 
         {currentTab === 'stats' && (
-          <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm text-center">
-            <h2 className="text-xl font-bold text-yellow-500 mb-4">📈 סטטיסטיקה אישית</h2>
-            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-               <p className="text-gray-300 text-sm mb-2">סך הנקודות שלך העונה:</p>
-               <p className="text-4xl font-black text-yellow-500">{myStats}</p>
+          <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm space-y-6 text-right">
+            <h2 className="text-xl font-bold text-yellow-500 mb-4 text-center">📈 סטטיסטיקה אישית עמוקה</h2>
+            
+            {/* סך נקודות */}
+            <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center shadow-inner">
+               <p className="text-gray-400 text-sm mb-1">סך הנקודות שלך העונה:</p>
+               <p className="text-5xl font-black text-yellow-500 drop-shadow-md">{myStats}</p>
+            </div>
+
+            {/* אחוזי פגיעה */}
+            <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-3">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-300 font-bold">🎯 אחוזי פגיעה כלליים:</span>
+                <span className="text-yellow-500 font-black text-lg">{hitRatePct}%</span>
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+                <div className="bg-gradient-to-l from-yellow-400 to-yellow-600 h-3 rounded-full transition-all duration-500" style={{ width: `${hitRatePct}%` }}></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center text-xs mt-2 border-t border-gray-800 pt-2">
+                <div>
+                  <p className="text-gray-500">בול פגיעה (מדויק)</p>
+                  <p className="text-white font-bold">{exactHits} משחקים</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">ניחשו כיוון</p>
+                  <p className="text-white font-bold">{directionHits} משחקים</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ג'וקרים ומחזור שיא */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-950 p-3 rounded-xl border border-gray-800 text-center flex flex-col justify-center">
+                <p className="text-gray-400 text-[11px] mb-1">🃏 ג'וקרים שנוצלו</p>
+                <p className="text-white font-black text-xl">{Object.keys(jokers).length} <span className="text-xs text-gray-500 font-normal">מתוך 36</span></p>
+              </div>
+              <div className="bg-gray-950 p-3 rounded-xl border border-yellow-900/30 text-center flex flex-col justify-center shadow-[0_0_10px_rgba(234,179,8,0.05)]">
+                <p className="text-gray-400 text-[11px] mb-1">🔥 המחזור הכי חזק</p>
+                <p className="text-yellow-500 font-black text-xl">מחזור {bestMatchday}</p>
+                <p className="text-[10px] text-gray-500">{maxMdPts > 0 ? `${maxMdPts} נקודות` : 'עדיין אין נקודות'}</p>
+              </div>
+            </div>
+
+            {/* נאמנות לקבוצה */}
+            <div className="border border-gray-800 bg-gray-800/50 p-4 rounded-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-1 h-full bg-blue-500"></div>
+              <p className="text-gray-300 text-sm mb-2 font-bold flex items-center gap-2">
+                <span>⚽</span> נאמנות לקבוצה: <span className="text-white">{tournament.favoriteTeam || 'לא נבחרה קבוצה'}</span>
+              </p>
+              {tournament.favoriteTeam ? (
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  הימרת על משחקים של הקבוצה שלך 
+                  <span className="text-yellow-500 font-black mx-1 text-sm">{loyaltyCount}</span> 
+                  פעמים העונה מתוך כלל המשחקים.
+                </p>
+              ) : (
+                 <p className="text-xs text-gray-500">בחר קבוצה אהובה בלשונית הטורניר כדי לראות מעקב.</p>
+              )}
             </div>
           </div>
         )}
