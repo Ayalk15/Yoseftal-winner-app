@@ -66,6 +66,7 @@ const isGameLockedByDate = (dateStr) => {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [isDataReady, setIsDataReady] = useState(false); // *** מניעת הבהוב: הוספנו משתנה חדש
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
@@ -127,6 +128,7 @@ export default function App() {
         setSeasonResults(data.seasonResults || { champion: '', topScorer: '' });
         setPlayerGoals(data.playerGoals || {});
       }
+      setIsDataReady(true); // *** מניעת הבהוב: הוספנו פקודה שמעדכנת שהנתונים הגיעו
     });
 
     const unsubChat = onSnapshot(doc(db, "league", "chat"), (docSnap) => {
@@ -550,7 +552,8 @@ export default function App() {
       }
   }
 
-  if (isCheckingAuth) {
+  // *** שינוי כאן: הוספנו תנאי שמוודא שגם אימות המשתמש וגם נתוני הענן מוכנים
+  if (isCheckingAuth || !isDataReady) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
   }
 
@@ -596,8 +599,6 @@ export default function App() {
       </div>
     );
   }
-
-  const userTeamSuffix = tournament.favoriteTeam ? ` (${tournament.favoriteTeam})` : '';
 
   return (
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
@@ -665,7 +666,6 @@ export default function App() {
             <div className="border-t border-red-900/50 pt-4">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-white font-bold text-sm">⚽ הזנת תוצאות אמת:</h3>
-                {/* כפתור הכנה ל-API שביקשת */}
                 <button onClick={handleFetchLiveScoresAPI} className="text-[10px] bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-800 hover:bg-blue-800 hover:text-white transition-colors">
                   🔄 עדכן מ-API
                 </button>
