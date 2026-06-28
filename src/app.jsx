@@ -101,6 +101,9 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [newChatMessage, setNewChatMessage] = useState('');
   const [allUsersData, setAllUsersData] = useState({}); 
+  
+  // פרופיל משתמש למודל הקופץ בטבלה
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
 
   // האזנה למצב התחברות
   useEffect(() => {
@@ -343,6 +346,11 @@ export default function App() {
     });
   };
 
+  // פונקציית דמה לחיבור עתידי ל-API אוטומטי
+  const handleFetchLiveScoresAPI = () => {
+    alert("🚀 בעתיד: כאן יתבצע חיבור ל-API חיצוני (כמו API-Football) לעדכון התוצאות באופן אוטומטי תוך כדי משחק!");
+  };
+
   const handlePredict = (gameId, value) => {
     if (lockedMatchdays[matchday]) { alert('המחזור נעול ולא ניתן לעדכן ניחושים'); return; }
     setPredictions(prev => {
@@ -452,11 +460,69 @@ export default function App() {
     return pts;
   };
 
-  const leaderboardArr = Object.values(allUsersData).map(u => ({
-     name: u.displayName || 'משתמש',
-     team: u.tournament?.favoriteTeam || '',
-     points: calculatePointsForUser(u)
-  })).sort((a, b) => b.points - a.points);
+  // משיכת סטטיסטיקות עמוקות עבור כל משתמש בטבלה
+  const getDetailedStatsForUser = (u) => {
+    let exactHits = 0;
+    let directionHits = 0;
+    let totalFinished = 0;
+    let loyaltyCount = 0;
+
+    const uPreds = u.predictions || {};
+    const uTeam = u.tournament?.favoriteTeam;
+
+    Object.keys(actualScores).forEach(key => {
+        const actual = actualScores[key];
+        const pred = uPreds[key];
+        if (actual && actual.isFinished && pred && pred.winner) {
+            totalFinished++;
+            if (pred.winner === actual.winner) {
+                directionHits++;
+                if (Number(pred.homeScore) === Number(actual.homeScore) && Number(pred.awayScore) === Number(actual.awayScore)) {
+                    exactHits++;
+                }
+            }
+        }
+    });
+
+    if (uTeam) {
+        Object.keys(allFixtures).forEach(md => {
+            allFixtures[md].forEach(game => {
+                if (game.home === uTeam || game.away === uTeam) {
+                    const gKey = `${md}-${game.id}`;
+                    if (uPreds[gKey] && uPreds[gKey].winner) loyaltyCount++;
+                }
+            });
+        });
+    }
+
+    const hitRatePct = totalFinished > 0 ? Math.round((directionHits / totalFinished) * 100) : 0;
+
+    // חלוקת תגים (Badges) למשתמשים
+    let badges = [];
+    if (exactHits >= 3) badges.push({ icon: '🎯', title: 'צלף (3+ פגיעות בול)' });
+    if (hitRatePct >= 50 && totalFinished >= 5) badges.push({ icon: '🔥', title: 'לוהט (מעל 50% הצלחה)' });
+    if (loyaltyCount >= 5) badges.push({ icon: '🛡️', title: 'אוהד שרוף (5+ הימורים על הקבוצה)' });
+
+    return { exactHits, directionHits, totalFinished, hitRatePct, loyaltyCount, badges };
+  };
+
+  // יצירת מערך הטבלה עם כל הנתונים, הסטטיסטיקות והתגים
+  const leaderboardArr = Object.entries(allUsersData).map(([uid, u]) => {
+     const stats = getDetailedStatsForUser(u);
+     return {
+        uid,
+        name: u.displayName || 'משתמש',
+        team: u.tournament?.favoriteTeam || '',
+        points: calculatePointsForUser(u),
+        stats,
+        tournament: u.tournament || {}
+     };
+  }).sort((a, b) => b.points - a.points);
+
+  // להוסיף כתר למקום הראשון
+  if (leaderboardArr.length > 0 && leaderboardArr[0].points > 0) {
+      leaderboardArr[0].stats.badges.unshift({ icon: '👑', title: 'מקום ראשון' });
+  }
 
   const getMVP = () => {
     let maxPts = 0;
@@ -470,27 +536,9 @@ export default function App() {
     return `עדיין אין נתונים למחזור ${matchday}`;
   };
 
+  // הסטטיסטיקות האישיות שלי (נמשכות מהפונקציה הכללית)
+  const myDetailedStats = getDetailedStatsForUser({ predictions, tournament, jokers });
   const myStats = calculatePointsForUser({ predictions, tournament, jokers });
-
-  // --- חישובי סטטיסטיקה מתקדמים ---
-  let totalFinishedPredictions = 0;
-  let directionHits = 0;
-  let exactHits = 0;
-  
-  Object.keys(actualScores).forEach(key => {
-    const actual = actualScores[key];
-    const pred = predictions[key];
-    if (actual && actual.isFinished && pred && pred.winner) {
-      totalFinishedPredictions++;
-      if (pred.winner === actual.winner) {
-        directionHits++;
-        if (Number(pred.homeScore) === Number(actual.homeScore) && Number(pred.awayScore) === Number(actual.awayScore)) {
-          exactHits++;
-        }
-      }
-    }
-  });
-  const hitRatePct = totalFinishedPredictions > 0 ? Math.round((directionHits / totalFinishedPredictions) * 100) : 0;
 
   let bestMatchday = 1;
   let maxMdPts = -1;
@@ -501,21 +549,6 @@ export default function App() {
           bestMatchday = i;
       }
   }
-
-  let loyaltyCount = 0;
-  if (tournament.favoriteTeam) {
-      Object.keys(allFixtures).forEach(md => {
-          allFixtures[md].forEach(game => {
-              if (game.home === tournament.favoriteTeam || game.away === tournament.favoriteTeam) {
-                  const gKey = `${md}-${game.id}`;
-                  if (predictions[gKey] && predictions[gKey].winner) {
-                      loyaltyCount++;
-                  }
-              }
-          });
-      });
-  }
-  // --- סוף חישובי סטטיסטיקה מתקדמים ---
 
   if (isCheckingAuth) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
@@ -630,7 +663,13 @@ export default function App() {
             </div>
 
             <div className="border-t border-red-900/50 pt-4">
-              <h3 className="text-white font-bold text-sm mb-3">⚽ הזנת תוצאות אמת:</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-white font-bold text-sm">⚽ הזנת תוצאות אמת:</h3>
+                {/* כפתור הכנה ל-API שביקשת */}
+                <button onClick={handleFetchLiveScoresAPI} className="text-[10px] bg-blue-900/50 text-blue-300 px-2 py-1 rounded border border-blue-800 hover:bg-blue-800 hover:text-white transition-colors">
+                  🔄 עדכן מ-API
+                </button>
+              </div>
 
               <select value={adminMatchday} onChange={(e) => setAdminMatchday(Number(e.target.value))} className="w-full bg-red-950/30 text-red-100 p-2 rounded-lg border border-red-800/50 mb-3 text-sm outline-none font-bold">
                 {[...Array(36).keys()].map(i => <option key={i + 1} value={i + 1}>מחזור {i + 1}</option>)}
@@ -897,13 +936,14 @@ export default function App() {
         {currentTab === 'leaderboard' && (
           <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm">
             <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2">📊 מצב הטבלה הכללית (Live)</h2>
+            <p className="text-xs text-gray-400 mb-4 text-center">לחץ על משתמש כדי לראות את הפרופיל והסטטיסטיקה שלו</p>
             <div className="overflow-hidden rounded-lg border border-gray-700 shadow-sm">
               <table className="w-full text-right border-collapse">
                 <thead>
                   <tr className="bg-gray-800 text-gray-300 text-sm">
-                    <th className="p-3 w-16 text-center">מיקום</th>
+                    <th className="p-3 w-12 text-center">מקום</th>
                     <th className="p-3">שם המנחש</th>
-                    <th className="p-3 text-center w-24">נקודות</th>
+                    <th className="p-3 text-center w-20">נקודות</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
@@ -911,9 +951,17 @@ export default function App() {
                     <tr className="bg-gray-900"><td colSpan="3" className="p-4 text-center text-gray-500">אין נתונים עדיין</td></tr>
                   ) : (
                     leaderboardArr.map((u, i) => (
-                      <tr key={i} className={`bg-gray-900 hover:bg-gray-800/50 transition-colors ${u.name === displayUsername ? 'bg-yellow-900/20' : ''}`}>
+                      <tr key={u.uid} onClick={() => setSelectedUserProfile(u)} className={`cursor-pointer bg-gray-900 hover:bg-gray-800 transition-colors ${u.uid === user.uid ? 'bg-yellow-900/20' : ''}`}>
                         <td className="p-4 font-black text-center text-lg text-yellow-500 bg-gray-950/30">{i + 1}</td>
-                        <td className="p-4 font-bold text-gray-100">{u.name}{u.team ? ` (${u.team})` : ''} {u.name === displayUsername ? '(אתה)' : ''}</td>
+                        <td className="p-4 font-bold text-gray-100 flex flex-col justify-center gap-1">
+                           <span className="flex items-center gap-2">
+                             {u.name} {u.uid === user.uid ? '(אתה)' : ''}
+                             <div className="flex gap-1 text-sm">
+                               {u.stats.badges.map((b, idx) => <span key={idx} title={b.title}>{b.icon}</span>)}
+                             </div>
+                           </span>
+                           {u.team && <span className="text-xs text-gray-500 font-normal">{u.team}</span>}
+                        </td>
                         <td className="p-4 text-center font-black text-yellow-500 bg-gray-950/50 text-lg">{u.points}</td>
                       </tr>
                     ))
@@ -928,34 +976,31 @@ export default function App() {
           <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-5 shadow-xl backdrop-blur-sm space-y-6 text-right">
             <h2 className="text-xl font-bold text-yellow-500 mb-4 text-center">📈 סטטיסטיקה אישית עמוקה</h2>
             
-            {/* סך נקודות */}
             <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center shadow-inner">
                <p className="text-gray-400 text-sm mb-1">סך הנקודות שלך העונה:</p>
                <p className="text-5xl font-black text-yellow-500 drop-shadow-md">{myStats}</p>
             </div>
 
-            {/* אחוזי פגיעה */}
             <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-300 font-bold">🎯 אחוזי פגיעה כלליים:</span>
-                <span className="text-yellow-500 font-black text-lg">{hitRatePct}%</span>
+                <span className="text-yellow-500 font-black text-lg">{myDetailedStats.hitRatePct}%</span>
               </div>
               <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
-                <div className="bg-gradient-to-l from-yellow-400 to-yellow-600 h-3 rounded-full transition-all duration-500" style={{ width: `${hitRatePct}%` }}></div>
+                <div className="bg-gradient-to-l from-yellow-400 to-yellow-600 h-3 rounded-full transition-all duration-500" style={{ width: `${myDetailedStats.hitRatePct}%` }}></div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-center text-xs mt-2 border-t border-gray-800 pt-2">
                 <div>
                   <p className="text-gray-500">בול פגיעה (מדויק)</p>
-                  <p className="text-white font-bold">{exactHits} משחקים</p>
+                  <p className="text-white font-bold">{myDetailedStats.exactHits} משחקים</p>
                 </div>
                 <div>
                   <p className="text-gray-500">ניחשו כיוון</p>
-                  <p className="text-white font-bold">{directionHits} משחקים</p>
+                  <p className="text-white font-bold">{myDetailedStats.directionHits} משחקים</p>
                 </div>
               </div>
             </div>
 
-            {/* ג'וקרים ומחזור שיא */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-950 p-3 rounded-xl border border-gray-800 text-center flex flex-col justify-center">
                 <p className="text-gray-400 text-[11px] mb-1">🃏 ג'וקרים שנוצלו</p>
@@ -968,7 +1013,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* נאמנות לקבוצה */}
             <div className="border border-gray-800 bg-gray-800/50 p-4 rounded-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-1 h-full bg-blue-500"></div>
               <p className="text-gray-300 text-sm mb-2 font-bold flex items-center gap-2">
@@ -977,7 +1021,7 @@ export default function App() {
               {tournament.favoriteTeam ? (
                 <p className="text-xs text-gray-400 leading-relaxed">
                   הימרת על משחקים של הקבוצה שלך 
-                  <span className="text-yellow-500 font-black mx-1 text-sm">{loyaltyCount}</span> 
+                  <span className="text-yellow-500 font-black mx-1 text-sm">{myDetailedStats.loyaltyCount}</span> 
                   פעמים העונה מתוך כלל המשחקים.
                 </p>
               ) : (
@@ -1009,7 +1053,45 @@ export default function App() {
         )}
       </div>
 
-      <footer className="max-w-md mx-auto mt-16 mb-8 text-center">
+      {/* פופ-אפ פרופיל משתמש (מופיע רק כשלוחצים על מישהו בטבלה) */}
+      {selectedUserProfile && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[2000] p-4" style={{ direction: 'rtl' }}>
+          <div className="bg-gray-900 border-2 border-yellow-500 rounded-2xl p-6 w-full max-w-sm text-right relative shadow-[0_0_30px_rgba(234,179,8,0.2)]">
+            <button onClick={() => setSelectedUserProfile(null)} className="absolute top-4 left-4 bg-gray-800 text-gray-400 hover:text-white w-8 h-8 rounded-full font-black border border-gray-700 flex items-center justify-center">X</button>
+            
+            <h3 className="text-2xl font-black text-white mb-1">{selectedUserProfile.name}</h3>
+            {selectedUserProfile.team && <p className="text-sm text-gray-400 mb-4">אוהד/ת {selectedUserProfile.team}</p>}
+            
+            <div className="flex gap-2 mb-4 bg-gray-800/50 p-2 rounded-lg border border-gray-800 flex-wrap">
+               {selectedUserProfile.stats.badges.map((b, idx) => (
+                  <div key={idx} className="flex items-center gap-1 bg-gray-950 px-2 py-1 rounded text-xs border border-gray-700" title={b.title}>
+                     <span>{b.icon}</span> <span className="text-gray-300">{b.title}</span>
+                  </div>
+               ))}
+               {selectedUserProfile.stats.badges.length === 0 && <span className="text-xs text-gray-500 p-1">עדיין אין תגים מיוחדים</span>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4 text-center">
+              <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
+                 <p className="text-[10px] text-gray-500">אחוזי פגיעה</p>
+                 <p className="text-xl font-black text-yellow-500">{selectedUserProfile.stats.hitRatePct}%</p>
+              </div>
+              <div className="bg-gray-950 border border-gray-800 rounded-xl p-3">
+                 <p className="text-[10px] text-gray-500">פגיעות בול</p>
+                 <p className="text-xl font-black text-yellow-500">{selectedUserProfile.stats.exactHits}</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm">
+               <p className="text-gray-400 font-bold border-b border-gray-700 pb-1 mb-2">בחירות טורניר:</p>
+               <p className="flex justify-between text-gray-300 mb-1"><span>🏆 אלופה:</span> <span className="font-bold text-white">{selectedUserProfile.tournament?.champion || 'לא נבחר'}</span></p>
+               <p className="flex justify-between text-gray-300"><span>👟 מלך שערים:</span> <span className="font-bold text-white">{selectedUserProfile.tournament?.topScorer || 'לא נבחר'}</span></p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="max-w-md mx-auto mt-16 mb-8 text-center relative z-40">
         <button type="button" onClick={loginAsAdmin} className={`px-5 py-2.5 text-sm font-bold rounded-lg border transition-all ${isAdminMode ? 'bg-red-950/80 border-red-800 text-red-400 hover:bg-red-900' : 'bg-gray-900/80 border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-600'}`}>
           {isAdminMode ? '🔒 צא ממצב מנהל' : '🔧 ניהול מערכת'}
         </button>
