@@ -521,8 +521,8 @@ export default function App() {
       }
     });
 
-    if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 50;
-    if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 30;
+    if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 30; // המנהל ביקש 30 נקודות לאלופה
+    if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 20; // המנהל ביקש 20 נקודות למלך שערים
     if (uTourn.topScorer && playerGoals[uTourn.topScorer]) pts += (playerGoals[uTourn.topScorer] * 2);
 
     return pts;
@@ -1138,10 +1138,10 @@ export default function App() {
             </div>
 
             <h2 className="text-yellow-500 font-black text-xl flex items-center gap-2 border-b border-gray-800 pb-2 mt-6">👑 חוקי טורניר ובונוסים</h2>
-            <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של האלופה מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">50 נקודות</span>.</span></p>
+            <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של האלופה מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">30 נקודות</span>.</span></p>
 
             <div className="bg-gray-950 p-3 rounded-lg border border-gray-800 mt-2 space-y-2">
-              <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של מלך השערים מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">30 נקודות</span>.</span></p>
+              <p className="flex items-start gap-2"><span>•</span> <span>ניחוש נכון של מלך השערים מעניק <span className="text-yellow-500 font-bold bg-gray-800 px-2 py-0.5 rounded">20 נקודות</span>.</span></p>
               <p className="text-sm text-gray-400 font-bold pr-4">⚽ בנוסף, על כל שער שיבקיע השחקן שנבחר במהלך העונה, יקבל המנחש 2 נקודות.</p>
             </div>
           </div>
