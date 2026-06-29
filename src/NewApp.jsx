@@ -45,6 +45,27 @@ const allFixtures = {
 
 const ISRAELI_TEAMS = ['מכבי ת"א', 'מכבי חיפה', 'בית"ר י-ם', 'הפועל ב"ש', 'הפועל ת"א', 'מכבי נתניה', 'הפועל חיפה', 'מכבי פ"ת', 'בני סכנין', 'עירוני דורות טבריה', 'הפועל ק"ש', 'הפועל פ"ת', 'הפועל ר"ג', 'הפועל י-ם'];
 
+// --- מילון תרגום מאנגלית לעברית עבור מערכת התוצאות האוטומטית ---
+const teamNameDictionary = {
+  "Maccabi Tel Aviv": "מכבי ת\"א",
+  "Maccabi Haifa": "מכבי חיפה",
+  "Beitar Jerusalem": "בית\"ר י-ם",
+  "Hapoel Beer Sheva": "הפועל ב\"ש",
+  "Hapoel Tel Aviv": "הפועל ת\"א",
+  "Maccabi Netanya": "מכבי נתניה",
+  "Hapoel Haifa": "הפועל חיפה",
+  "Maccabi Petah Tikva": "מכבי פ\"ת",
+  "Bnei Sakhnin": "בני סכנין",
+  "Ironi Tiberias": "עירוני דורות טבריה",
+  "Hapoel Kiryat Shmona": "הפועל ק\"ש",
+  "Ironi Kiryat Shmona": "הפועל ק\"ש", 
+  "Hapoel Petah Tikva": "הפועל פ\"ת",
+  "Hapoel Ramat Gan": "הפועל ר\"ג",
+  "Hapoel Jerusalem": "הפועל י-ם"
+};
+
+const API_KEY = "5d206f3c710f80b55467e863fa4b99d7";
+
 const getGameLockDeadline = (dateStr) => {
   if (!dateStr || dateStr === 'יעודכן בהמשך') return null;
   const parts = dateStr.split('/');
@@ -117,7 +138,7 @@ export default function App() {
 
   // משיכת נתונים מהענן - ירוץ רק *אחרי* שהמשתמש מחובר כדי לא לתקוע מכשירי אייפון!
   useEffect(() => {
-    if (!user) return; // עצירה: אם לא מחוברים, אל תנסה למשוך כלום.
+    if (!user) return; 
 
     const unsubGlobal = onSnapshot(doc(db, "league", "global"), (docSnap) => {
       if (docSnap.exists()) {
@@ -133,7 +154,7 @@ export default function App() {
       setIsDataReady(true);
     }, (error) => {
       console.error("Error fetching global data:", error);
-      setIsDataReady(true); // שחרור נעילה במקרה של שגיאה כדי למנוע תקיעות
+      setIsDataReady(true); 
     });
 
     const unsubChat = onSnapshot(doc(db, "league", "chat"), (docSnap) => {
@@ -155,7 +176,7 @@ export default function App() {
       unsubChat();
       unsubUsers();
     };
-  }, [user]); // הוספנו את המשתמש לכאן כדי שהפונקציה תרוץ רק כשיש משתמש
+  }, [user]); 
 
   // שליפת הנתונים האישיים
   useEffect(() => {
@@ -353,8 +374,69 @@ export default function App() {
     });
   };
 
-  const handleFetchLiveScoresAPI = () => {
-    alert("🚀 בעתיד: כאן יתבצע חיבור ל-API חיצוני (כמו API-Football) לעדכון התוצאות באופן אוטומטי תוך כדי משחק!");
+  // --- חיבור למערכת תוצאות אוטומטית (API) ---
+  const handleFetchLiveScoresAPI = async () => {
+    if (API_KEY === "הכנס_כאן_את_מפתח_ה_API_שלך") {
+       alert("כדי שהעדכון האוטומטי יעבוד, עליך להירשם בחינם לאתר API-Football, לקבל מפתח ולהדביק אותו בקוד בשורה 48.\nבינתיים, אתה יכול להמשיך לעדכן ידנית.");
+       return;
+    }
+
+    try {
+      alert("מתחבר לשרת התוצאות ומחפש משחקים פעילים... אנא המתן.");
+
+      const response = await fetch("https://v3.football.api-sports.io/fixtures?live=all-283", { 
+        method: "GET",
+        headers: {
+          "x-rapidapi-host": "v3.football.api-sports.io",
+          "x-rapidapi-key": API_KEY
+        }
+      });
+
+      if (!response.ok) throw new Error("שגיאה בחיבור לשרת (בדוק את מפתח ה-API שלך).");
+      
+      const data = await response.json();
+      let updatedCount = 0;
+      let newScores = { ...actualScores }; 
+
+      if (data.response && data.response.length > 0) {
+          data.response.forEach(game => {
+             const apiHome = teamNameDictionary[game.teams.home.name] || game.teams.home.name;
+             const apiAway = teamNameDictionary[game.teams.away.name] || game.teams.away.name;
+             const homeGoals = game.goals.home;
+             const awayGoals = game.goals.away;
+             const isFinished = game.fixture.status.short === "FT"; 
+
+             if (homeGoals !== null && awayGoals !== null) {
+                allFixtures[adminMatchday]?.forEach(localGame => {
+                   if (localGame.home === apiHome && localGame.away === apiAway) {
+                      const key = `${adminMatchday}-${localGame.id}`;
+                      let winner = 'X';
+                      if (homeGoals > awayGoals) winner = '1';
+                      else if (homeGoals < awayGoals) winner = '2';
+
+                      newScores[key] = {
+                         homeScore: homeGoals,
+                         awayScore: awayGoals,
+                         isFinished: isFinished || (newScores[key]?.isFinished || false), 
+                         winner: winner
+                      };
+                      updatedCount++;
+                   }
+                });
+             }
+          });
+      }
+
+      if (updatedCount > 0) {
+         setActualScores(newScores); 
+         alert(`הצלחה! ⚽ עודכנו ${updatedCount} משחקים במחזור זה מהרשת.\n\nשים לב: אל תשכח ללחוץ למטה על "שמור שינויי מנהל בענן" כדי לשלוח את התוצאות לכולם!`);
+      } else {
+         alert("לא נמצאו משחקים פעילים ברגע זה התואמים למחזור שבחרת.");
+      }
+
+    } catch (error) {
+       alert("הייתה תקלה קלה מול השרת החיצוני: " + error.message + "\nהאתר ממשיך לעבוד כרגיל, אפשר לעדכן ידנית.");
+    }
   };
 
   const handlePredict = (gameId, value) => {
@@ -551,12 +633,10 @@ export default function App() {
       }
   }
 
-  // 1. קודם כל בודקים אם יש בכלל חיבור כלשהו למערכת
   if (isCheckingAuth) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>בודק חיבור למערכת...</div>;
   }
 
-  // 2. אם לא מחוברים, מציגים מיד את מסך ההתחברות (לפני שמנסים לטעון מהענן!)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 text-white" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
@@ -600,12 +680,9 @@ export default function App() {
     );
   }
 
-  // 3. עכשיו כשהמשתמש מחובר ויש לו הרשאה, מציגים את מסך ההמתנה עד שהנתונים יגיעו
   if (!isDataReady) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
   }
-
-  // --- מכאן והלאה זהה לחלוטין לקוד הקודם, רק מרונדר כשהכל מוכן! ---
 
   return (
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
