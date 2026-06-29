@@ -45,7 +45,6 @@ const allFixtures = {
 
 const ISRAELI_TEAMS = ['מכבי ת"א', 'מכבי חיפה', 'בית"ר י-ם', 'הפועל ב"ש', 'הפועל ת"א', 'מכבי נתניה', 'הפועל חיפה', 'מכבי פ"ת', 'בני סכנין', 'עירוני דורות טבריה', 'הפועל ק"ש', 'הפועל פ"ת', 'הפועל ר"ג', 'הפועל י-ם'];
 
-// --- מילון תרגום מאנגלית לעברית עבור מערכת התוצאות האוטומטית ---
 const teamNameDictionary = {
   "Maccabi Tel Aviv": "מכבי ת\"א",
   "Maccabi Haifa": "מכבי חיפה",
@@ -96,13 +95,11 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   const [currentTab, setCurrentTab] = useState('predictions');
   const [matchday, setMatchday] = useState(1);
   const [liveClockText, setLiveClockText] = useState('');
   const [countdownText, setCountdownText] = useState('');
 
-  // Global Admin State
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminMatchday, setAdminMatchday] = useState(1);
   const [adminMessage1, setAdminMessage1] = useState("");
@@ -114,20 +111,15 @@ export default function App() {
   const [playerGoals, setPlayerGoals] = useState({});
   const [newTrackedPlayer, setNewTrackedPlayer] = useState('');
 
-  // User Local State
   const [predictions, setPredictions] = useState({});
   const [tournament, setTournament] = useState({ champion: '', topScorer: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState({});
   
-  // App Global State
   const [chatMessages, setChatMessages] = useState([]);
   const [newChatMessage, setNewChatMessage] = useState('');
   const [allUsersData, setAllUsersData] = useState({}); 
-  
-  // פרופיל משתמש למודל הקופץ בטבלה
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
 
-  // האזנה למצב התחברות
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -136,7 +128,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // משיכת נתונים מהענן - ירוץ רק *אחרי* שהמשתמש מחובר כדי לא לתקוע מכשירי אייפון!
   useEffect(() => {
     if (!user) return; 
 
@@ -178,7 +169,6 @@ export default function App() {
     };
   }, [user]); 
 
-  // שליפת הנתונים האישיים
   useEffect(() => {
     if (user) {
       getDoc(doc(db, "users", user.uid)).then(docSnap => {
@@ -192,7 +182,6 @@ export default function App() {
     }
   }, [user]);
 
-  // שעון וזמנים
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
@@ -209,26 +198,21 @@ export default function App() {
         setCountdownText('🔒 מחזור זה נעול על ידי מנהל');
         return;
       }
-
       const fixtures = allFixtures[matchday];
       if (!fixtures || fixtures.length === 0) {
         setCountdownText('');
         return;
       }
-
       let earliestDeadline = null;
       fixtures.forEach(g => {
         const d = getGameLockDeadline(g.time);
         if (d && (!earliestDeadline || d < earliestDeadline)) earliestDeadline = d;
       });
-
       if (!earliestDeadline) {
         setCountdownText('');
         return;
       }
-
       const diff = earliestDeadline.getTime() - new Date().getTime();
-
       if (diff <= 0) {
         setCountdownText('🔒 מחזור זה נעול לניחושים!');
       } else {
@@ -238,7 +222,6 @@ export default function App() {
         setCountdownText(`⏱️ נעילת ניחושים בעוד: ${days} ימים, ${hours} שעות ו-${minutes} דקות`);
       }
     };
-
     updateTimer();
     const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
@@ -277,7 +260,6 @@ export default function App() {
   const handleEditNickname = async () => {
     const currentName = user?.displayName || user?.email?.split('@')[0];
     const newName = prompt('הכנס כינוי חדש (השם שיופיע בצ\'אט ובטבלה):', currentName);
-    
     if (newName && newName.trim() !== '' && newName !== currentName) {
       try {
         await updateProfile(auth.currentUser, { displayName: newName.trim() });
@@ -374,16 +356,38 @@ export default function App() {
     });
   };
 
-  // --- חיבור למערכת תוצאות אוטומטית (API) ---
+  // --- הפונקציה החדשה של המילוי האקראי ---
+  const handleAutoFill = () => {
+    if (lockedMatchdays[matchday]) { alert('המחזור נעול!'); return; }
+    if (!window.confirm("האם אתה בטוח שברצונך למלא ניחושים אקראיים לכל המשחקים במחזור זה?")) return;
+
+    setPredictions(prev => {
+      const newPredictions = { ...prev };
+      allFixtures[matchday]?.forEach(game => {
+        const key = `${matchday}-${game.id}`;
+        // מילוי אקראי פשוט בין 0 ל-3 שערים לכל קבוצה
+        const home = Math.floor(Math.random() * 4);
+        const away = Math.floor(Math.random() * 4);
+        let winner = 'X';
+        if (home > away) winner = '1';
+        else if (home < away) winner = '2';
+        
+        newPredictions[key] = { winner, homeScore: home, awayScore: away };
+      });
+      return newPredictions;
+    });
+    alert("הניחושים מולאו באקראי! אל תשכח ללחוץ על 'שמור שינויים' (למטה) כדי לשלוח לענן.");
+  };
+
+  // --- חיבור ל-API חיצוני ---
   const handleFetchLiveScoresAPI = async () => {
     if (API_KEY === "הכנס_כאן_את_מפתח_ה_API_שלך") {
-       alert("כדי שהעדכון האוטומטי יעבוד, עליך להירשם בחינם לאתר API-Football, לקבל מפתח ולהדביק אותו בקוד בשורה 48.\nבינתיים, אתה יכול להמשיך לעדכן ידנית.");
+       alert("כדי שהעדכון האוטומטי יעבוד, עליך להירשם בחינם לאתר API-Football, לקבל מפתח ולהדביק אותו בקוד.\nבינתיים, אתה יכול להמשיך לעדכן ידנית.");
        return;
     }
 
     try {
       alert("מתחבר לשרת התוצאות ומחפש משחקים פעילים... אנא המתן.");
-
       const response = await fetch("https://v3.football.api-sports.io/fixtures?live=all-283", { 
         method: "GET",
         headers: {
@@ -893,6 +897,13 @@ export default function App() {
               <select value={matchday} onChange={(e) => setMatchday(Number(e.target.value))} className="w-full bg-gray-800 p-3 rounded-lg text-white font-bold border border-gray-700 focus:outline-none focus:border-yellow-500 transition-colors">
                 {[...Array(36).keys()].map(i => <option key={i + 1} value={i + 1}>מחזור {i + 1}</option>)}
               </select>
+
+              {/* *** כפתור מילוי אקראי חדש *** */}
+              {!lockedMatchdays[matchday] && (
+                <button type="button" onClick={handleAutoFill} className="w-full bg-gray-800 hover:bg-gray-700 text-yellow-500 py-2 rounded-lg font-bold text-sm border border-yellow-600/50 transition-all">
+                  🎲 מלא ניחושים באקראי
+                </button>
+              )}
 
               <div className={`p-2 rounded-lg text-center text-xs font-black border ${lockedMatchdays[matchday] ? 'bg-red-950/40 border-red-800 text-red-400' : 'bg-green-950/40 border-green-800 text-green-400'}`}>
                 {lockedMatchdays[matchday] ? '🔒 מחזור נעול' : '🟢 מחזור פתוח'}
