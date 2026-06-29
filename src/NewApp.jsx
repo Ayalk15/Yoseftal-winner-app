@@ -66,7 +66,7 @@ const isGameLockedByDate = (dateStr) => {
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [isDataReady, setIsDataReady] = useState(false); // *** מניעת הבהוב: הוספנו משתנה חדש
+  const [isDataReady, setIsDataReady] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
@@ -115,8 +115,10 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // האזנה בזמן אמת לנתונים מהענן
+  // משיכת נתונים מהענן - ירוץ רק *אחרי* שהמשתמש מחובר כדי לא לתקוע מכשירי אייפון!
   useEffect(() => {
+    if (!user) return; // עצירה: אם לא מחוברים, אל תנסה למשוך כלום.
+
     const unsubGlobal = onSnapshot(doc(db, "league", "global"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -128,7 +130,10 @@ export default function App() {
         setSeasonResults(data.seasonResults || { champion: '', topScorer: '' });
         setPlayerGoals(data.playerGoals || {});
       }
-      setIsDataReady(true); // *** מניעת הבהוב: הוספנו פקודה שמעדכנת שהנתונים הגיעו
+      setIsDataReady(true);
+    }, (error) => {
+      console.error("Error fetching global data:", error);
+      setIsDataReady(true); // שחרור נעילה במקרה של שגיאה כדי למנוע תקיעות
     });
 
     const unsubChat = onSnapshot(doc(db, "league", "chat"), (docSnap) => {
@@ -150,7 +155,7 @@ export default function App() {
       unsubChat();
       unsubUsers();
     };
-  }, []);
+  }, [user]); // הוספנו את המשתמש לכאן כדי שהפונקציה תרוץ רק כשיש משתמש
 
   // שליפת הנתונים האישיים
   useEffect(() => {
@@ -348,7 +353,6 @@ export default function App() {
     });
   };
 
-  // פונקציית דמה לחיבור עתידי ל-API אוטומטי
   const handleFetchLiveScoresAPI = () => {
     alert("🚀 בעתיד: כאן יתבצע חיבור ל-API חיצוני (כמו API-Football) לעדכון התוצאות באופן אוטומטי תוך כדי משחק!");
   };
@@ -462,7 +466,6 @@ export default function App() {
     return pts;
   };
 
-  // משיכת סטטיסטיקות עמוקות עבור כל משתמש בטבלה
   const getDetailedStatsForUser = (u) => {
     let exactHits = 0;
     let directionHits = 0;
@@ -499,7 +502,6 @@ export default function App() {
 
     const hitRatePct = totalFinished > 0 ? Math.round((directionHits / totalFinished) * 100) : 0;
 
-    // חלוקת תגים (Badges) למשתמשים
     let badges = [];
     if (exactHits >= 3) badges.push({ icon: '🎯', title: 'צלף (3+ פגיעות בול)' });
     if (hitRatePct >= 50 && totalFinished >= 5) badges.push({ icon: '🔥', title: 'לוהט (מעל 50% הצלחה)' });
@@ -508,7 +510,6 @@ export default function App() {
     return { exactHits, directionHits, totalFinished, hitRatePct, loyaltyCount, badges };
   };
 
-  // יצירת מערך הטבלה עם כל הנתונים, הסטטיסטיקות והתגים
   const leaderboardArr = Object.entries(allUsersData).map(([uid, u]) => {
      const stats = getDetailedStatsForUser(u);
      return {
@@ -521,7 +522,6 @@ export default function App() {
      };
   }).sort((a, b) => b.points - a.points);
 
-  // להוסיף כתר למקום הראשון
   if (leaderboardArr.length > 0 && leaderboardArr[0].points > 0) {
       leaderboardArr[0].stats.badges.unshift({ icon: '👑', title: 'מקום ראשון' });
   }
@@ -538,7 +538,6 @@ export default function App() {
     return `עדיין אין נתונים למחזור ${matchday}`;
   };
 
-  // הסטטיסטיקות האישיות שלי (נמשכות מהפונקציה הכללית)
   const myDetailedStats = getDetailedStatsForUser({ predictions, tournament, jokers });
   const myStats = calculatePointsForUser({ predictions, tournament, jokers });
 
@@ -552,11 +551,12 @@ export default function App() {
       }
   }
 
-  // *** שינוי כאן: הוספנו תנאי שמוודא שגם אימות המשתמש וגם נתוני הענן מוכנים
-  if (isCheckingAuth || !isDataReady) {
-    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
+  // 1. קודם כל בודקים אם יש בכלל חיבור כלשהו למערכת
+  if (isCheckingAuth) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>בודק חיבור למערכת...</div>;
   }
 
+  // 2. אם לא מחוברים, מציגים מיד את מסך ההתחברות (לפני שמנסים לטעון מהענן!)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 text-white" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
@@ -599,6 +599,13 @@ export default function App() {
       </div>
     );
   }
+
+  // 3. עכשיו כשהמשתמש מחובר ויש לו הרשאה, מציגים את מסך ההמתנה עד שהנתונים יגיעו
+  if (!isDataReady) {
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-yellow-500 font-bold text-xl" style={{ direction: 'rtl' }}>טוען נתונים מהענן...</div>;
+  }
+
+  // --- מכאן והלאה זהה לחלוטין לקוד הקודם, רק מרונדר כשהכל מוכן! ---
 
   return (
     <div className="min-h-screen text-white p-4 pb-28" style={{ direction: 'rtl', backgroundColor: '#0f172a', backgroundImage: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%), url("https://www.transparenttextures.com/patterns/cubes.png")' }}>
