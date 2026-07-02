@@ -6,7 +6,7 @@ import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore'
 // מאגר כל 36 מחזורי הליגה המלאים
 const allFixtures = {
   1: [{ id: 1, home: 'מכבי פ"ת', away: 'הפועל ק"ש', time: '22/08/26' }, { id: 2, home: 'עירוני דורות טבריה', away: 'הפועל פ"ת', time: '22/08/26' }, { id: 3, home: 'הפועל י-ם', away: 'מכבי ת"א', time: '22/08/26' }, { id: 4, home: 'מכבי חיפה', away: 'הפועל ר"ג', time: '22/08/26' }, { id: 5, home: 'הפועל ב"ש', away: 'הפועל חיפה', time: '22/08/26' }, { id: 6, home: 'בית"ר י-ם', away: 'הפועל ת"א', time: '22/08/26' }, { id: 7, home: 'מכבי נתניה', away: 'בני סכנין', time: '22/08/26' }],
-  2: [{ id: 1, home: 'בני סכנין', away: 'מכבי פ"ת', time: '29/08/26' }, { id: 2, home: 'מכבי נתניה', away: 'הפועל י-ם', time: '29/08/26' }, { id: 3, home: 'הפועל ת"א', away: 'מכבי חיפה', time: '29/08/26' }, { id: 4, home: 'הפועל ב"ש', away: 'הפועל ר"ג', time: '29/08/26' }, { id: 5, home: 'מכבי חיפה', away: 'מכבי ת"א', time: '29/08/26' }, { id: 6, home: 'הפועל פ"ת', away: 'בית"ר י-ם', time: '29/08/26' }, { id: 7, home: 'עירוני דורות טבריה', away: 'הפועל ק"ש', time: '29/08/26' }],
+  2: [{ id: 1, home: 'בני סכנין', away: 'מכבי פ"ת', time: '29/08/26' }, { id: 2, home: 'מכבי נתניה', away: 'הפועל י-ם', time: '29/08/26' }, { id: 3, home: 'הפועל ת"א', away: 'מכבי חיפה', time: '29/08/26' }, { id: 4, home: 'הפועל ב"ש', away: 'הפועל ר"ג', time: '29/08/26' }, { id: 5, home: 'הפועל חיפה', away: 'מכבי ת"א', time: '29/08/26' }, { id: 6, home: 'הפועל פ"ת', away: 'בית"ר י-ם', time: '29/08/26' }, { id: 7, home: 'עירוני דורות טבריה', away: 'הפועל ק"ש', time: '29/08/26' }],
   3: [{ id: 1, home: 'מכבי פ"ת', away: 'עירוני דורות טבריה', time: '05/09/26' }, { id: 2, home: 'הפועל ק"ש', away: 'הפועל י-ם', time: '05/09/26' }, { id: 3, home: 'הפועל פ"ת', away: 'מכבי חיפה', time: '05/09/26' }, { id: 4, home: 'מכבי ת"א', away: 'הפועל ב"ש', time: '05/09/26' }, { id: 5, home: 'הפועל ר"ג', away: 'הפועל ת"א', time: '05/09/26' }, { id: 6, home: 'הפועל חיפה', away: 'מכבי נתניה', time: '05/09/26' }, { id: 7, home: 'בית"ר י-ם', away: 'בני סכנין', time: '05/09/26' }],
   4: [{ id: 1, home: 'בית"ר י-ם', away: 'מכבי פ"ת', time: '14/09/26' }, { id: 2, home: 'בני סכנין', away: 'הפועל חיפה', time: '14/09/26' }, { id: 3, home: 'מכבי נתניה', away: 'הפועל ר"ג', time: '14/09/26' }, { id: 4, home: 'הפועל ת"א', away: 'מכבי ת"א', time: '14/09/26' }, { id: 5, home: 'הפועל ב"ש', away: 'הפועל פ"ת', time: '14/09/26' }, { id: 6, home: 'מכבי חיפה', away: 'הפועל ק"ש', time: '14/09/26' }, { id: 7, home: 'הפועל י-ם', away: 'עירוני דורות טבריה', time: '14/09/26' }],
   5: [{ id: 1, home: 'מכבי פ"ת', away: 'הפועל י-ם', time: '19/09/26' }, { id: 2, home: 'מכבי חיפה', away: 'עירוני דורות טבריה', time: '19/09/26' }, { id: 3, home: 'הפועל ב"ש', away: 'הפועל ק"ש', time: '19/09/26' }, { id: 4, home: 'הפועל ת"א', away: 'הפועל פ"ת', time: '19/09/26' }, { id: 5, home: 'מכבי נתניה', away: 'מכבי ת"א', time: '19/09/26' }, { id: 6, home: 'בני סכנין', away: 'הפועל ר"ג', time: '19/09/26' }, { id: 7, home: 'בית"ר י-ם', away: 'הפועל חיפה', time: '19/09/26' }],
@@ -115,8 +115,6 @@ export default function App() {
   const [tournament, setTournament] = useState({ champion: '', topScorer: '', favoriteTeam: '' });
   const [jokers, setJokers] = useState({});
   
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newChatMessage, setNewChatMessage] = useState('');
   const [allUsersData, setAllUsersData] = useState({}); 
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
 
@@ -148,12 +146,6 @@ export default function App() {
       setIsDataReady(true); 
     });
 
-    const unsubChat = onSnapshot(doc(db, "league", "chat"), (docSnap) => {
-      if (docSnap.exists()) {
-        setChatMessages(docSnap.data().messages || []);
-      }
-    });
-
     const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
       const usersMap = {};
       snapshot.forEach(d => {
@@ -164,7 +156,6 @@ export default function App() {
 
     return () => {
       unsubGlobal();
-      unsubChat();
       unsubUsers();
     };
   }, [user]); 
@@ -259,7 +250,7 @@ export default function App() {
 
   const handleEditNickname = async () => {
     const currentName = user?.displayName || user?.email?.split('@')[0];
-    const newName = prompt('הכנס כינוי חדש (השם שיופיע בצ\'אט ובטבלה):', currentName);
+    const newName = prompt('הכנס כינוי חדש (השם שיופיע בטבלה):', currentName);
     if (newName && newName.trim() !== '' && newName !== currentName) {
       try {
         await updateProfile(auth.currentUser, { displayName: newName.trim() });
@@ -478,23 +469,6 @@ export default function App() {
 
   const displayUsername = user?.displayName || user?.email?.split('@')[0];
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newChatMessage.trim()) return;
-
-    const msg = {
-      id: Date.now(),
-      text: newChatMessage,
-      sender: displayUsername,
-      time: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    const newChatArray = [...chatMessages, msg];
-    setChatMessages(newChatArray); 
-    setNewChatMessage('');
-    await setDoc(doc(db, "league", "chat"), { messages: newChatArray }, { merge: true });
-  };
-
   const calculatePointsForUser = (userData) => {
     let pts = 0;
     const uPreds = userData.predictions || {};
@@ -518,8 +492,8 @@ export default function App() {
       }
     });
 
-    if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 30; // המנהל ביקש 30 נקודות לאלופה
-    if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 20; // המנהל ביקש 20 נקודות למלך שערים
+    if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 30; 
+    if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 20; 
     if (uTourn.topScorer && playerGoals[uTourn.topScorer]) pts += (playerGoals[uTourn.topScorer] * 2);
 
     return pts;
@@ -702,7 +676,6 @@ export default function App() {
               <button type="button" onClick={() => { setCurrentTab('predictions'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'predictions' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>⚽ משחקים</button>
               <button type="button" onClick={() => { setCurrentTab('tournament'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'tournament' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>👑 הטורניר</button>
               <button type="button" onClick={() => { setCurrentTab('leaderboard'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'leaderboard' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>📊 טבלה</button>
-              <button type="button" onClick={() => { setCurrentTab('chat'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'chat' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>💬 צ'אט</button>
               <button type="button" onClick={() => { setCurrentTab('stats'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'stats' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>📈 סטט'</button>
               <button type="button" onClick={() => { setCurrentTab('rules'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'rules' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>ℹ️ חוקים</button>
               <button type="button" onClick={() => { setCurrentTab('public'); setIsMenuOpen(false); }} className={`px-3 py-2 text-sm font-bold rounded-lg transition-all ${currentTab === 'public' ? 'bg-yellow-500 text-gray-950' : 'text-gray-300 hover:bg-gray-700'}`}>👁️ ניחושי כולם</button>
@@ -969,31 +942,6 @@ export default function App() {
             })}
 
             <button type="button" onClick={handleSaveUserData} className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-gray-950 font-black py-4 rounded-xl shadow-lg border border-yellow-400 text-base transition-all transform hover:-translate-y-1">💾 שמור שינויים (ענן)</button>
-          </div>
-        )}
-
-        {currentTab === 'chat' && (
-          <div className="bg-gray-900/90 border border-gray-800 rounded-xl p-4 shadow-xl backdrop-blur-sm flex flex-col h-[55vh]">
-            <h2 className="text-xl font-bold text-yellow-500 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">💬 צ'אט הליגה (Live)</h2>
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {chatMessages.length === 0 ? (
-                <p className="text-center text-gray-500 mt-10">אין עדיין הודעות. תהיה הראשון לכתוב!</p>
-              ) : (
-                chatMessages.map(msg => (
-                  <div key={msg.id} className={`flex flex-col ${msg.sender === displayUsername ? 'items-start' : 'items-end'}`}>
-                    <span className="text-[10px] text-gray-500 mb-0.5 px-1">{msg.sender} • {msg.time}</span>
-                    <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${msg.sender === displayUsername ? 'bg-yellow-500 text-gray-950 rounded-tr-sm' : 'bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700'}`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <form onSubmit={handleSendMessage} className="mt-3 flex gap-2 pt-2 border-t border-gray-800">
-              <input type="text" value={newChatMessage} onChange={e => setNewChatMessage(e.target.value)} placeholder="כתוב הודעה..." className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-yellow-500" />
-              <button type="submit" className="bg-yellow-500 text-gray-950 px-4 py-2 rounded-lg font-black text-sm hover:bg-yellow-400">שלח</button>
-            </form>
           </div>
         )}
 
