@@ -3,7 +3,7 @@ import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 
-// הנה הייבוא החכם מהקובץ החיצוני - בלי ללכלך את הקוד המרכזי!
+// הייבוא החכם מהקובץ החיצוני
 import { allFixtures, ISRAELI_TEAMS, teamNameDictionary } from './fixtures';
 
 const API_KEY = "5d206f3c710f80b55467e863fa4b99d7";
@@ -357,6 +357,7 @@ export default function App() {
         pts += localPts;
       }
     });
+    // ניקוד מעודכן כפי שביקשת! 30 לאלופה, 20 למלך שערים
     if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 30;
     if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 20;
     if (uTourn.topScorer && playerGoals[uTourn.topScorer]) pts += (playerGoals[uTourn.topScorer] * 2);
@@ -540,20 +541,28 @@ export default function App() {
                 </div>
               </div>
 
+              {/* תיקון העיצוב (מניעת חיתוך שמות קבוצות ארוכים) נמצא ממש כאן בתוך ה-div הבא */}
               <div className="space-y-2 max-h-60 overflow-y-auto bg-gray-950 p-2 rounded border border-gray-800">
                   {allFixtures[adminMatchday]?.map(game => {
                     const key = `${adminMatchday}-${game.id}`;
                     const actual = actualScores[key] || { homeScore: 0, awayScore: 0, isFinished: false, winner: 'X' };
                     return (
                       <div key={game.id} className={`flex items-center justify-between p-2 rounded-lg border ${actual.isFinished ? 'bg-red-950/20 border-red-800/50' : 'bg-gray-800 border-gray-700'}`}>
-                        <span className="text-xs font-bold w-1/4 text-right truncate text-gray-300">{game.home}</span>
-                        <div className="flex gap-1" style={{direction: 'ltr'}}>
+                        {/* קבוצת הבית - גמיש וארוך */}
+                        <span className="text-xs font-bold flex-1 text-right text-gray-300 leading-tight ml-1">{game.home}</span>
+                        
+                        {/* התוצאה באמצע - לא משנה גודל */}
+                        <div className="flex items-center gap-1 shrink-0" style={{direction: 'ltr'}}>
                           <input type="number" min="0" value={actual.awayScore} onChange={e => handleActualScoreChange(game.id, 'away', e.target.value)} className="w-8 text-center bg-gray-950 text-white border border-gray-600 rounded text-sm py-1 outline-none focus:border-red-500" disabled={actual.isFinished} />
-                          <span>:</span>
+                          <span className="text-gray-500 font-bold px-0.5">:</span>
                           <input type="number" min="0" value={actual.homeScore} onChange={e => handleActualScoreChange(game.id, 'home', e.target.value)} className="w-8 text-center bg-gray-950 text-white border border-gray-600 rounded text-sm py-1 outline-none focus:border-red-500" disabled={actual.isFinished} />
                         </div>
-                        <span className="text-xs font-bold w-1/4 text-left truncate text-gray-300">{game.away}</span>
-                        <button onClick={() => toggleGameFinished(game.id)} className={`px-2 py-1 rounded text-[10px] font-black ${actual.isFinished ? 'bg-red-600' : 'bg-gray-700'}`}>{actual.isFinished ? 'נעול' : 'פתוח'}</button>
+                        
+                        {/* קבוצת החוץ - גמיש וארוך */}
+                        <span className="text-xs font-bold flex-1 text-left text-gray-300 leading-tight mr-1">{game.away}</span>
+                        
+                        {/* כפתור פתוח/נעול - בגודל קבוע קטן */}
+                        <button onClick={() => toggleGameFinished(game.id)} className={`px-2 py-1.5 rounded text-[10px] font-black shrink-0 w-12 mr-2 ${actual.isFinished ? 'bg-red-600' : 'bg-gray-700'}`}>{actual.isFinished ? 'נעול' : 'פתוח'}</button>
                       </div>
                     );
                   })}
@@ -588,7 +597,7 @@ export default function App() {
                </div>
             </div>
 
-            <button onClick={handleSaveAdminData} className="w-full bg-red-600 py-4 rounded-xl font-black mt-4 shadow-lg text-base">💾 שמור וסנכרן נתוני מנהל לענן</button>
+            <button onClick={handleSaveAdminData} className="w-full bg-red-600 py-4 rounded-xl font-black mt-4 shadow-lg text-base">💾 שמור נתוני מנהל בענן</button>
           </div>
         )}
 
