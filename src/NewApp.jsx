@@ -356,7 +356,6 @@ export default function App() {
     });
   };
 
-  // --- הפונקציה החדשה של המילוי האקראי ---
   const handleAutoFill = () => {
     if (lockedMatchdays[matchday]) { alert('המחזור נעול!'); return; }
     if (!window.confirm("האם אתה בטוח שברצונך למלא ניחושים אקראיים לכל המשחקים במחזור זה?")) return;
@@ -365,7 +364,6 @@ export default function App() {
       const newPredictions = { ...prev };
       allFixtures[matchday]?.forEach(game => {
         const key = `${matchday}-${game.id}`;
-        // מילוי אקראי פשוט בין 0 ל-3 שערים לכל קבוצה
         const home = Math.floor(Math.random() * 4);
         const away = Math.floor(Math.random() * 4);
         let winner = 'X';
@@ -379,7 +377,6 @@ export default function App() {
     alert("הניחושים מולאו באקראי! אל תשכח ללחוץ על 'שמור שינויים' (למטה) כדי לשלוח לענן.");
   };
 
-  // --- חיבור ל-API חיצוני ---
   const handleFetchLiveScoresAPI = async () => {
     if (API_KEY === "הכנס_כאן_את_מפתח_ה_API_שלך") {
        alert("כדי שהעדכון האוטומטי יעבוד, עליך להירשם בחינם לאתר API-Football, לקבל מפתח ולהדביק אותו בקוד.\nבינתיים, אתה יכול להמשיך לעדכן ידנית.");
