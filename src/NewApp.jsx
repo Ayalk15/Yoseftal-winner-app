@@ -3,7 +3,7 @@ import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 
-// הנה הייבוא של הנתונים מהקובץ השני! הרבה יותר נקי
+// הנה הייבוא החכם מהקובץ החיצוני - בלי ללכלך את הקוד המרכזי!
 import { allFixtures, ISRAELI_TEAMS, teamNameDictionary } from './fixtures';
 
 const API_KEY = "5d206f3c710f80b55467e863fa4b99d7";
@@ -192,26 +192,22 @@ export default function App() {
 
   const handleEditNickname = async () => {
     const currentName = user?.displayName || user?.email?.split('@')[0];
-    const newName = prompt('הכנס כינוי חדש:', currentName);
-    if (newName && newName.trim() !== '') {
+    const newName = prompt('הכנס כינוי חדש (השם שיופיע בטבלה):', currentName);
+    if (newName && newName.trim() !== '' && newName !== currentName) {
       try {
         await updateProfile(auth.currentUser, { displayName: newName.trim() });
         setUser({ ...auth.currentUser, displayName: newName.trim() });
         await setDoc(doc(db, "users", user.uid), { displayName: newName.trim() }, { merge: true });
+        alert('הכינוי שלך עודכן בהצלחה בענן!');
       } catch (err) { alert('שגיאה בעדכון הכינוי.'); }
     }
   };
 
   const loginAsAdmin = () => {
-    if (isAdminMode) {
-      setIsAdminMode(false);
+    if (allUsersData[user?.uid]?.isAdmin) {
+      setIsAdminMode(!isAdminMode);
     } else {
-      const pass = prompt('הכנס סיסמת מנהל:');
-      if (pass === '2531') {
-        setIsAdminMode(true);
-      } else if (pass !== null) {
-        alert('סיסמה שגויה!');
-      }
+      alert("אין לך הרשאות מנהל במערכת זו. יש להגדיר isAdmin: true בדוקומנט שלך ב-Firebase.");
     }
   };
 
@@ -361,7 +357,6 @@ export default function App() {
         pts += localPts;
       }
     });
-    // ניקוד מעודכן כפי שביקשת! 30 לאלופה, 20 למלך שערים
     if (seasonResults.champion && uTourn.champion === seasonResults.champion) pts += 30;
     if (seasonResults.topScorer && uTourn.topScorer === seasonResults.topScorer) pts += 20;
     if (uTourn.topScorer && playerGoals[uTourn.topScorer]) pts += (playerGoals[uTourn.topScorer] * 2);
@@ -509,7 +504,7 @@ export default function App() {
       </div>
 
       <div className="max-w-md mx-auto mt-2">
-        {isAdminMode && (
+        {isAdminMode && allUsersData[user.uid]?.isAdmin && (
           <div className="bg-gray-900 border-2 border-red-600 rounded-xl p-5 mb-4 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
             <h2 className="text-red-500 font-black text-xl mb-4 border-b border-red-800 pb-2">🔧 פאנל ניהול מערכת</h2>
             
@@ -593,7 +588,7 @@ export default function App() {
                </div>
             </div>
 
-            <button onClick={handleSaveAdminData} className="w-full bg-red-600 py-4 rounded-xl font-black mt-4 shadow-lg text-base">💾 שמור נתוני מנהל בענן</button>
+            <button onClick={handleSaveAdminData} className="w-full bg-red-600 py-4 rounded-xl font-black mt-4 shadow-lg text-base">💾 שמור וסנכרן נתוני מנהל לענן</button>
           </div>
         )}
 
@@ -817,11 +812,13 @@ export default function App() {
         </div>
       )}
 
-      <footer className="max-w-md mx-auto mt-16 mb-8 text-center relative z-40">
-        <button type="button" onClick={loginAsAdmin} className={`px-5 py-2.5 text-sm font-bold rounded-lg border transition-all ${isAdminMode ? 'bg-red-950/80 border-red-800 text-red-400 hover:bg-red-900' : 'bg-gray-900/80 border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-600'}`}>
-          {isAdminMode ? '🔒 צא ממצב מנהל' : '🔧 ניהול מערכת'}
-        </button>
-      </footer>
+      {allUsersData[user?.uid]?.isAdmin && (
+        <footer className="max-w-md mx-auto mt-8 mb-4 text-center">
+          <button type="button" onClick={loginAsAdmin} className={`px-4 py-1.5 text-xs font-bold rounded border ${isAdminMode ? 'bg-red-950 border-red-800 text-red-400' : 'bg-gray-900 border-gray-800 text-gray-500'}`}>
+            {isAdminMode ? '🔒 צא ממצב מנהל' : '🔧 כנס לפאנל ניהול'}
+          </button>
+        </footer>
+      )}
       
       <div className="fixed bottom-0 left-0 w-full bg-gray-950/95 backdrop-blur-md border-t border-gray-800 p-2.5 text-center text-xs font-bold text-yellow-500 z-40">
         🌟 MVP המחזור הנוכחי: {getMVP()}
